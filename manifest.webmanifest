@@ -1,0 +1,17 @@
+{
+  "name": "Seamless Studio",
+  "short_name": "Seamless",
+  "description": "Editor für Instagram Seamless-Panorama-Carousels – Fotos, Texte, Sticker, Hintergründe. 100% offline, deine Fotos bleiben auf deinem Gerät.",
+  "lang": "de",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f6ede8",
+  "theme_color": "#f6ede8",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

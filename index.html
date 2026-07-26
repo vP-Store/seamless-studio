@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Seamless Studio – Panorama Carousel Editor</title>
+<meta name="description" content="Editor für Instagram Seamless-Panorama-Carousels. 100% offline – deine Fotos bleiben auf deinem Gerät.">
+<meta name="theme-color" content="#f6ede8">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="stylesheet" href="fonts.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ======= TOP BAR ======= -->
+<header id="topbar">
+  <div class="tb-left">
+    <span class="logo">✦ <b>Seamless</b> Studio</span>
+  </div>
+  <div class="tb-center">
+    <select id="formatSel" title="Format">
+      <option value="4:5">Carousel 4:5</option>
+      <option value="1:1">Carousel 1:1</option>
+      <option value="9:16">Story 9:16</option>
+    </select>
+    <div class="slidectrl" id="slideCtrl">
+      <button id="slidesMinus" title="Slide entfernen">−</button>
+      <span id="slidesLabel">5 Slides</span>
+      <button id="slidesPlus" title="Slide hinzufügen">+</button>
+    </div>
+  </div>
+  <div class="tb-right">
+    <button id="btnUndo" class="icon-btn" title="Rückgängig (Strg+Z)">↩</button>
+    <button id="btnRedo" class="icon-btn" title="Wiederholen (Strg+Y)">↪</button>
+    <button id="btnGuides" class="icon-btn active" title="Schnittkanten anzeigen">⋮⋮</button>
+    <button id="btnTheme" class="icon-btn" title="Hell/Dunkel">◐</button>
+    <button id="btnExport" class="primary">Exportieren</button>
+  </div>
+</header>
+
+<!-- ======= MAIN ======= -->
+<div id="main">
+
+  <!-- Tool tabs -->
+  <nav id="toolbar">
+    <button data-panel="photos"  class="tool active" title="Fotos"><span>🖼️</span><label>Fotos</label></button>
+    <button data-panel="bg"      class="tool" title="Hintergrund"><span>🎨</span><label>Hintergrund</label></button>
+    <button data-panel="text"    class="tool" title="Text"><span>🅣</span><label>Text</label></button>
+    <button data-panel="stickers"class="tool" title="Sticker"><span>💛</span><label>Sticker</label></button>
+    <button data-panel="layout"  class="tool" title="Auto-Layout"><span>✨</span><label>Layout</label></button>
+    <button data-panel="project" class="tool" title="Projekt"><span>📁</span><label>Projekt</label></button>
+  </nav>
+
+  <!-- Side panel -->
+  <aside id="sidepanel">
+    <!-- FOTOS -->
+    <section class="panel active" id="panel-photos">
+      <h3>Fotos</h3>
+      <label class="dropzone" id="dropzone">
+        <input type="file" id="fileInput" accept="image/*" multiple hidden>
+        <div>📷<br><b>Fotos hinzufügen</b><br><small>tippen oder hierher ziehen</small></div>
+      </label>
+      <div id="photoShelf" class="shelf"></div>
+      <p class="hint">Tipp: Foto auf der Leinwand antippen, um Rahmen &amp; Filter zu ändern.</p>
+    </section>
+
+    <!-- HINTERGRUND -->
+    <section class="panel" id="panel-bg">
+      <h3>Hintergrund</h3>
+      <div class="subtabs" id="bgTabs">
+        <button data-cat="aquarell" class="active">Aquarell</button>
+        <button data-cat="textur">Textur</button>
+        <button data-cat="muster">Muster</button>
+        <button data-cat="eigene">Eigene</button>
+      </div>
+      <div id="bgGrid" class="grid"></div>
+      <div id="bgCustom" class="hidden">
+        <label class="dropzone small">
+          <input type="file" id="bgFileInput" accept="image/*" hidden>
+          <div>🖼️ Eigenes Bild wählen</div>
+        </label>
+        <div class="ctl"><span>Weichzeichnen</span><input type="range" id="bgBlur" min="0" max="40" value="0"></div>
+        <div class="ctl"><span>Abdunkeln</span><input type="range" id="bgDarken" min="0" max="70" value="0"></div>
+        <hr>
+        <div class="ctl"><span>Farbe 1</span><input type="color" id="bgCol1" value="#f6e3db"></div>
+        <div class="ctl"><span>Farbe 2</span><input type="color" id="bgCol2" value="#e9c4bc"></div>
+        <div class="ctl"><span>Richtung</span><input type="range" id="bgAngle" min="0" max="360" value="115"></div>
+        <button id="bgApplyGradient" class="wide">Verlauf anwenden</button>
+      </div>
+    </section>
+
+    <!-- TEXT -->
+    <section class="panel" id="panel-text">
+      <h3>Text</h3>
+      <button id="addText" class="wide primary">＋ Textfeld erzeugen</button>
+      <p class="hint">Das Textfeld erscheint auf der Leinwand – einfach verschieben und drehen. Bearbeiten unten im Eigenschaften-Bereich.</p>
+      <div class="fontpreviews" id="fontPreviews"></div>
+    </section>
+
+    <!-- STICKER -->
+    <section class="panel" id="panel-stickers">
+      <h3>Sticker &amp; Akzente</h3>
+      <div class="subtabs" id="stTabs">
+        <button data-cat="herzen" class="active">Herzen</button>
+        <button data-cat="funkeln">Funkeln</button>
+        <button data-cat="natur">Natur</button>
+        <button data-cat="baby">Baby</button>
+        <button data-cat="linien">Linien</button>
+        <button data-cat="privacy">🔒 Privacy</button>
+      </div>
+      <div id="stGrid" class="grid sticker-grid"></div>
+      <div id="emojiRow">
+        <input type="text" id="emojiInput" placeholder="Emoji eingeben… 🎈" maxlength="4">
+        <button id="addEmoji">＋</button>
+      </div>
+    </section>
+
+    <!-- LAYOUT -->
+    <section class="panel" id="panel-layout">
+      <h3>Auto-Layout</h3>
+      <p class="hint">Ordnet alle Fotos automatisch an: versetzt, leicht gekantelt, ohne Überlappung – über die Schnittkanten laufend.</p>
+      <button id="autoLayout" class="wide primary">✨ Fotos automatisch anordnen</button>
+      <button id="autoShuffle" class="wide">🎲 Neue Variante würfeln</button>
+      <hr>
+      <div class="ctl"><span>Kantelung</span><input type="range" id="alTilt" min="0" max="8" value="3" step="0.5"></div>
+      <div class="ctl"><span>Versatz hoch/tief</span><input type="range" id="alStagger" min="0" max="200" value="90"></div>
+    </section>
+
+    <!-- PROJEKT -->
+    <section class="panel" id="panel-project">
+      <h3>Projekt</h3>
+      <p class="hint" id="saveState">Automatisch gespeichert ✓</p>
+      <button id="projSave" class="wide">💾 Projekt als Datei sichern</button>
+      <label class="wide btn-like">📂 Projekt laden
+        <input type="file" id="projLoad" accept=".seamless,.json" hidden>
+      </label>
+      <button id="projNew" class="wide danger">🗑 Neues leeres Projekt</button>
+      <hr>
+      <p class="hint">Seamless Studio läuft zu 100 % auf deinem Gerät. Fotos werden niemals hochgeladen.</p>
+    </section>
+  </aside>
+
+  <!-- Canvas area -->
+  <div id="stage">
+    <canvas id="canvas"></canvas>
+    <div id="zoomHud"><button id="zoomOut">−</button><span id="zoomLabel">100%</span><button id="zoomIn">+</button><button id="zoomFit">Einpassen</button></div>
+  </div>
+</div>
+
+<!-- ======= PROPERTIES (context) ======= -->
+<div id="props" class="hidden">
+  <div class="props-head">
+    <span id="propsTitle">Element</span>
+    <div class="props-actions">
+      <button id="elDup" title="Duplizieren">⧉</button>
+      <button id="elUp" title="Nach vorn">▲</button>
+      <button id="elDown" title="Nach hinten">▼</button>
+      <button id="elDel" title="Löschen" class="danger">🗑</button>
+      <button id="propsClose" title="Schließen">✕</button>
+    </div>
+  </div>
+  <div class="props-body" id="propsBody"></div>
+</div>
+
+<!-- ======= EXPORT DIALOG ======= -->
+<div id="exportDlg" class="modal hidden">
+  <div class="modal-card">
+    <h3>Exportieren</h3>
+    <div class="ctl"><span>Qualität</span>
+      <select id="expScale"><option value="1">Standard (1080er Breite)</option><option value="2">2K – doppelt so scharf</option></select>
+    </div>
+    <div class="ctl"><span>Format</span>
+      <select id="expFormat"><option value="jpeg">JPG (empfohlen)</option><option value="png">PNG</option></select>
+    </div>
+    <div class="progress hidden" id="expProgress"><div></div></div>
+    <div class="modal-btns">
+      <button id="expCancel">Abbrechen</button>
+      <button id="expShare" class="hidden">📤 Teilen…</button>
+      <button id="expGo" class="primary">⬇ ZIP herunterladen</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="hidden"></div>
+
+<script src="jszip.min.js"></script>
+<script src="util.js"></script>
+<script src="backgrounds.js"></script>
+<script src="frames.js"></script>
+<script src="stickers.js"></script>
+<script src="render.js"></script>
+<script src="interact.js"></script>
+<script src="ui.js"></script>
+<script src="exporter.js"></script>
+<script src="main.js"></script>
+</body>
+</html>
