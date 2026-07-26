@@ -68,12 +68,12 @@ hr { border: none; border-top: 1px solid var(--line); margin: 12px 0; }
   background: var(--bg2); border: 1px solid var(--line);
 }
 .icon-btn.active { background: var(--accent-soft); border-color: var(--accent); }
-button.primary {
+button.primary, label.primary {
   background: var(--accent); color: #fff; border-radius: 10px;
   padding: 9px 16px; font-size: 13px; font-weight: 600;
   box-shadow: 0 3px 10px rgba(191, 155, 108, .35);
 }
-button.primary:active { transform: translateY(1px); }
+button.primary:active, label.primary:active { transform: translateY(1px); }
 
 /* ---------- main layout ---------- */
 #main { flex: 1; display: flex; min-height: 0; }
