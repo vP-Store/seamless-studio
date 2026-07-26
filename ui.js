@@ -22,12 +22,16 @@ SS.ui = {};
       btn.classList.add('active');
       $('panel-' + panel).classList.add('active');
       sp.classList.add('open');
+      if (isMobile() && SS.state.selectedId) {   // one sheet at a time on mobile
+        SS.state.selectedId = null;
+        SS.ui.showProps(); SS.requestRender();
+      }
     });
   });
 
   /* ================= top bar ================= */
   SS.ui.syncTop = function () {
-    $('slidesLabel').textContent = st.slides + ' Slides';
+    $('slidesLabel').textContent = isMobile() ? String(st.slides) : st.slides + ' Slides';
     $('formatSel').value = st.format;
     $('slideCtrl').style.display = st.format === '9:16' ? 'none' : 'flex';
   };
@@ -69,14 +73,21 @@ SS.ui = {};
   $('zoomOut').onclick = () => { st.zoom = SS.clamp(st.zoom / 1.2, 0.05, 4); SS.ui.zoomLabel(); SS.requestRender(); };
 
   /* ================= photos panel ================= */
+  // The file inputs sit invisibly ON TOP of their buttons (.file-overlay):
+  // the tap lands natively on the input — most reliable picker trigger on mobile.
   const fileInput = $('fileInput');
+  const fileInput2 = $('fileInput2');
+  const panelClose = $('panelClose');
+  if (panelClose) panelClose.addEventListener('click', () => $('sidepanel').classList.remove('open'));
   $('dropzone').addEventListener('dragover', e => { e.preventDefault(); e.currentTarget.classList.add('over'); });
   $('dropzone').addEventListener('dragleave', e => e.currentTarget.classList.remove('over'));
   $('dropzone').addEventListener('drop', e => {
+    if (e.target === fileInput) return; // native input drop → handled via change
     e.preventDefault(); e.currentTarget.classList.remove('over');
     addFiles(e.dataTransfer.files);
   });
   fileInput.addEventListener('change', () => { addFiles(fileInput.files); fileInput.value = ''; });
+  if (fileInput2) fileInput2.addEventListener('change', () => { addFiles(fileInput2.files); fileInput2.value = ''; });
 
   async function addFiles(files) {
     files = Array.from(files);  // copy: input gets cleared while we load async
@@ -104,6 +115,7 @@ SS.ui = {};
       } catch (err) { SS.toast('Foto konnte nicht geladen werden'); }
     }
     SS.pushHistory(); SS.ui.showProps(); SS.requestRender();
+    if (isMobile()) $('sidepanel').classList.remove('open');
   }
 
   function addShelfThumb(imgId, dataURL) {
@@ -493,6 +505,7 @@ SS.ui = {};
     const sel = SS.getSel();
     if (!sel) { props.classList.add('hidden'); return; }
     props.classList.remove('hidden');
+    if (isMobile()) $('sidepanel').classList.remove('open');  // one sheet at a time
     body.innerHTML = '';
     const titles = { photo: '📷 Foto', text: '🅣 Text', sticker: '💛 Sticker', emoji: '😊 Emoji', blur: '🔒 Blur' };
     $('propsTitle').textContent = titles[sel.type] || 'Element';

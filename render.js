@@ -292,6 +292,8 @@ SS.paintScene = function (c, W, H, opts = {}) {
 
 /* ---------- screen render ---------- */
 SS.render = function () {
+  const es = document.getElementById('emptyState');
+  if (es) es.style.display = SS.state.elements.length ? 'none' : 'flex';
   const canvas = SS.el('canvas');
   const stage = SS.el('stage');
   const dpr = Math.min(window.devicePixelRatio || 1, 2);

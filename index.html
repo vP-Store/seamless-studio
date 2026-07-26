@@ -57,11 +57,13 @@
 
   <!-- Side panel -->
   <aside id="sidepanel">
+    <div class="sheet-handle"></div>
+    <button id="panelClose" title="Schließen">✕</button>
     <!-- FOTOS -->
     <section class="panel active" id="panel-photos">
       <h3>Fotos</h3>
       <label class="dropzone" id="dropzone">
-        <input type="file" id="fileInput" accept="image/*" multiple hidden>
+        <input type="file" id="fileInput" accept="image/*" multiple class="file-overlay">
         <div>📷<br><b>Fotos hinzufügen</b><br><small>tippen oder hierher ziehen</small></div>
       </label>
       <div id="photoShelf" class="shelf"></div>
@@ -147,6 +149,20 @@
   <!-- Canvas area -->
   <div id="stage">
     <canvas id="canvas"></canvas>
+    <div id="emptyState">
+      <div class="es-card">
+        <h2>✦ <b>Seamless</b> Studio</h2>
+        <p>Dein Panorama-Carousel in 3 Schritten:</p>
+        <ol>
+          <li>📷 Fotos hinzufügen</li>
+          <li>✨ Anordnen, Text &amp; Sticker</li>
+          <li>⬇️ Als Slides exportieren</li>
+        </ol>
+        <label id="esAdd" class="primary big btnfile">📷 Fotos hinzufügen
+          <input type="file" id="fileInput2" accept="image/*" multiple class="file-overlay">
+        </label>
+      </div>
+    </div>
     <div id="zoomHud"><button id="zoomOut">−</button><span id="zoomLabel">100%</span><button id="zoomIn">+</button><button id="zoomFit">Einpassen</button></div>
   </div>
 </div>

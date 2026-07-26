@@ -61,6 +61,9 @@
 
   /* ---------- pointer events ---------- */
   canvas.addEventListener('pointerdown', (ev) => {
+    // touching the canvas closes the mobile bottom sheet
+    if (window.matchMedia('(max-width: 760px)').matches)
+      document.getElementById('sidepanel').classList.remove('open');
     canvas.setPointerCapture(ev.pointerId);
     pointers.set(ev.pointerId, { x: ev.offsetX, y: ev.offsetY });
 
