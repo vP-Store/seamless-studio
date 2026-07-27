@@ -64,6 +64,9 @@
     // touching the canvas closes the mobile bottom sheet
     if (window.matchMedia('(max-width: 760px)').matches)
       document.getElementById('sidepanel').classList.remove('open');
+    // iOS: stale pointers survive missed pointerup/cancel events —
+    // a fresh primary pointer always starts a clean gesture
+    if (ev.isPrimary) { pointers.clear(); mode = null; }
     canvas.setPointerCapture(ev.pointerId);
     pointers.set(ev.pointerId, { x: ev.offsetX, y: ev.offsetY });
 
@@ -185,6 +188,16 @@
   SS.invalidateEl = function (el) {
     if (el.type === 'photo') SS.cardCacheClear(el.id);
   };
+
+  /* ---------- iOS Safari: kill native page-zoom & scroll on the canvas ---------- */
+  canvas.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+  canvas.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+  document.addEventListener('gesturestart', (e) => e.preventDefault());
+  document.addEventListener('gesturechange', (e) => e.preventDefault());
+  // block page pinch-zoom everywhere (panels keep normal scrolling)
+  document.addEventListener('touchmove', (e) => {
+    if (e.scale !== undefined && e.scale !== 1) e.preventDefault();
+  }, { passive: false });
 
   /* ---------- wheel zoom ---------- */
   canvas.addEventListener('wheel', (ev) => {

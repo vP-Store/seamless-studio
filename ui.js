@@ -415,6 +415,11 @@ SS.ui = {};
   const body = $('propsBody');
 
   $('propsClose').onclick = () => { st.selectedId = null; SS.ui.showProps(); SS.requestRender(); };
+  const propsExpand = $('propsExpand');
+  if (propsExpand) propsExpand.onclick = () => {
+    const mini = props.classList.toggle('mini');
+    propsExpand.textContent = mini ? 'Bearbeiten ⌄' : 'Zuklappen ⌃';
+  };
   $('elDel').onclick = () => SS.ui.deleteSel();
   $('elDup').onclick = () => SS.ui.dupSel();
   $('elUp').onclick = () => reorder(1);
@@ -505,7 +510,14 @@ SS.ui = {};
     const sel = SS.getSel();
     if (!sel) { props.classList.add('hidden'); return; }
     props.classList.remove('hidden');
-    if (isMobile()) $('sidepanel').classList.remove('open');  // one sheet at a time
+    if (isMobile()) {
+      $('sidepanel').classList.remove('open');   // one sheet at a time
+      props.classList.add('mini');               // start slim — canvas stays visible
+      const pe = $('propsExpand');
+      if (pe) pe.textContent = 'Bearbeiten ⌄';
+    } else {
+      props.classList.remove('mini');
+    }
     body.innerHTML = '';
     const titles = { photo: '📷 Foto', text: '🅣 Text', sticker: '💛 Sticker', emoji: '😊 Emoji', blur: '🔒 Blur' };
     $('propsTitle').textContent = titles[sel.type] || 'Element';

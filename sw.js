@@ -1,5 +1,5 @@
 /* Seamless Studio – Service Worker (offline cache) */
-const VERSION = 'ss-v1.0.2';
+const VERSION = 'ss-v1.0.3';
 const ASSETS = [
   './',
   './index.html',
