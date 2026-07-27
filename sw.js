@@ -1,5 +1,5 @@
 /* Seamless Studio – Service Worker (offline cache) */
-const VERSION = 'ss-v1.0.3';
+const VERSION = 'ss-v2.0.0';
 const ASSETS = [
   './',
   './index.html',
@@ -36,7 +36,27 @@ const ASSETS = [
   './great-vibes-latin-400-normal.woff2',
   './amatic-sc-latin-400-normal.woff2',
   './amatic-sc-latin-700-normal.woff2',
-  './courier-prime-latin-400-normal.woff2'
+  './courier-prime-latin-400-normal.woff2',
+  './cinzel-latin-400-normal.woff2',
+  './abril-fatface-latin-400-normal.woff2',
+  './dm-serif-display-latin-400-normal.woff2',
+  './libre-baskerville-latin-400-normal.woff2',
+  './bebas-neue-latin-400-normal.woff2',
+  './anton-latin-400-normal.woff2',
+  './archivo-black-latin-400-normal.woff2',
+  './raleway-latin-400-normal.woff2',
+  './quicksand-latin-400-normal.woff2',
+  './comfortaa-latin-400-normal.woff2',
+  './pacifico-latin-400-normal.woff2',
+  './satisfy-latin-400-normal.woff2',
+  './sacramento-latin-400-normal.woff2',
+  './parisienne-latin-400-normal.woff2',
+  './shadows-into-light-latin-400-normal.woff2',
+  './patrick-hand-latin-400-normal.woff2',
+  './kalam-latin-400-normal.woff2',
+  './special-elite-latin-400-normal.woff2',
+  './marcellus-latin-400-normal.woff2',
+  './italiana-latin-400-normal.woff2'
 ];
 
 self.addEventListener('install', (e) => {

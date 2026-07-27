@@ -26,12 +26,25 @@ SS.filteredPhoto = function (el) {
   const rec = SS.images[el.imgId];
   if (!rec) return null;
   const fl = el.filter;
-  const key = JSON.stringify(fl) + (el.flip ? 'F' : '');
+  const cr = el.crop || { zoom: 1, ox: 0, oy: 0 };
+  const key = JSON.stringify(fl) + (el.flip ? 'F' : '') + JSON.stringify(cr);
   const hit = _photoCache[el.id];
   if (hit && hit.key === key) return hit.canvas;
 
+  // crop: zoom into the photo, offsets shift the visible window
+  let srcImg = rec.img, sw = rec.w, sh = rec.h;
+  if (cr.zoom > 1.001) {
+    const vw = rec.w / cr.zoom, vh = rec.h / cr.zoom;
+    const sx = (rec.w - vw) / 2 * (1 + SS.clamp(cr.ox, -1, 1));
+    const sy = (rec.h - vh) / 2 * (1 + SS.clamp(cr.oy, -1, 1));
+    const cc = document.createElement('canvas');
+    cc.width = Math.round(vw); cc.height = Math.round(vh);
+    cc.getContext('2d').drawImage(rec.img, sx, sy, vw, vh, 0, 0, cc.width, cc.height);
+    srcImg = cc; sw = cc.width; sh = cc.height;
+  }
+
   const cv = document.createElement('canvas');
-  cv.width = rec.w; cv.height = rec.h;
+  cv.width = sw; cv.height = sh;
   const c = cv.getContext('2d');
   const parts = [];
   if (fl.brightness !== 100) parts.push(`brightness(${fl.brightness}%)`);
@@ -42,7 +55,7 @@ SS.filteredPhoto = function (el) {
   if (parts.length) c.filter = parts.join(' ');
   c.save();
   if (el.flip) { c.translate(cv.width, 0); c.scale(-1, 1); }
-  c.drawImage(rec.img, 0, 0, cv.width, cv.height);
+  c.drawImage(srcImg, 0, 0, cv.width, cv.height);
   c.restore();
   c.filter = 'none';
 
@@ -135,6 +148,199 @@ SS.measureText = function (el) {
   return { w: w + padX * 2, h: lines.length * lh + padY * 2, lh, padX, padY };
 };
 
+function roundRectPath(c, x, y, w, h, r) {
+  r = Math.min(r, w / 2, h / 2);
+  c.beginPath();
+  c.moveTo(x + r, y);
+  c.arcTo(x + w, y, x + w, y + h, r);
+  c.arcTo(x + w, y + h, x, y + h, r);
+  c.arcTo(x, y + h, x, y, r);
+  c.arcTo(x, y, x + w, y, r);
+  c.closePath();
+}
+
+/* text background painters — behind the glyphs */
+function paintTextBg(c, el, m, lineWidths) {
+  const style = el.bgStyle;
+  if (!style || style === 'none' || style === 'glass') return;
+  const alpha = (el.opacity ?? 1) * (el.bgAlpha ?? 0.85);
+  const col = el.bgColor || '#ffffff';
+  c.save();
+  c.globalAlpha = alpha;
+  c.fillStyle = col;
+  const x = -m.w / 2, y = -m.h / 2;
+
+  if (style === 'pill' || style === 'card') {
+    roundRectPath(c, x, y, m.w, m.h, style === 'pill' ? m.h / 2 : Math.min(18, m.h / 4));
+    c.fill();
+  } else if (style === 'label' || style === 'marker') {
+    // per-line boxes like the Instagram text tool
+    lineWidths.forEach((lw, i) => {
+      const bw = lw + m.padX * 1.5;
+      const by = y + m.padY + m.lh * i + m.lh * 0.06;
+      const bh = m.lh * 0.92;
+      let bx = -bw / 2;
+      if (el.align === 'left') bx = x + m.padX * 0.25;
+      if (el.align === 'right') bx = -x - m.padX * 0.25 - bw;
+      if (style === 'label') { roundRectPath(c, bx, by, bw, bh, bh * 0.34); c.fill(); }
+      else {
+        c.save(); c.transform(1, 0, -0.1, 1, 0, 0);
+        const rr = mulbT(i * 7 + el.id.length);
+        c.beginPath();
+        c.moveTo(bx + rr() * 6, by + bh * 0.16 + rr() * 4);
+        c.lineTo(bx + bw - rr() * 6, by + bh * 0.1 + rr() * 5);
+        c.lineTo(bx + bw - rr() * 8, by + bh * 0.9 - rr() * 4);
+        c.lineTo(bx + rr() * 8, by + bh * 0.86 + rr() * 4);
+        c.closePath(); c.fill();
+        c.restore();
+      }
+    });
+  } else if (style === 'sticky') {
+    c.save();
+    c.shadowColor = 'rgba(30,20,10,.3)'; c.shadowBlur = 16; c.shadowOffsetY = 8;
+    c.fillRect(x, y, m.w, m.h);
+    c.restore();
+    c.globalAlpha = alpha * 0.85;
+    c.fillStyle = '#efe6cf';
+    c.save(); c.translate(0, y + 4); c.rotate(-0.03);
+    c.fillRect(-m.w * 0.14, -m.padY * 0.7, m.w * 0.28, m.padY * 1.1);
+    c.restore();
+  } else if (style === 'ribbon') {
+    const fold = m.h * 0.42;
+    c.fillStyle = shadeHex(col, -35);
+    c.beginPath();
+    c.moveTo(x - fold, y + m.h * 0.18); c.lineTo(x + 2, y + m.h * 0.18);
+    c.lineTo(x + 2, y + m.h * 0.82); c.lineTo(x - fold, y + m.h * 0.82);
+    c.lineTo(x - fold * 0.55, y + m.h / 2); c.closePath(); c.fill();
+    c.beginPath();
+    c.moveTo(-x + fold, y + m.h * 0.18); c.lineTo(-x - 2, y + m.h * 0.18);
+    c.lineTo(-x - 2, y + m.h * 0.82); c.lineTo(-x + fold, y + m.h * 0.82);
+    c.lineTo(-x + fold * 0.55, y + m.h / 2); c.closePath(); c.fill();
+    c.fillStyle = col;
+    c.fillRect(x, y, m.w, m.h);
+  } else if (style === 'torn') {
+    const rr = mulbT(el.id.length * 3);
+    c.save();
+    c.shadowColor = 'rgba(30,20,10,.22)'; c.shadowBlur = 10; c.shadowOffsetY = 5;
+    c.beginPath();
+    const jag = Math.max(5, m.h * 0.05);
+    const edge = (x0, y0, x1, y1, n) => {
+      for (let i = 1; i <= n; i++) {
+        const t = i / n;
+        c.lineTo(x0 + (x1 - x0) * t + (rr() - 0.5) * jag * 2, y0 + (y1 - y0) * t + (rr() - 0.5) * jag * 2);
+      }
+    };
+    c.moveTo(x, y);
+    edge(x, y, x + m.w, y, 14); edge(x + m.w, y, x + m.w, y + m.h, 8);
+    edge(x + m.w, y + m.h, x, y + m.h, 14); edge(x, y + m.h, x, y, 8);
+    c.closePath(); c.fill();
+    c.restore();
+  } else if (style === 'stamp') {
+    c.strokeStyle = col; c.lineWidth = Math.max(2.5, m.h * 0.03);
+    c.setLineDash([m.h * 0.12, m.h * 0.08]);
+    roundRectPath(c, x, y, m.w, m.h, 10);
+    c.stroke();
+    c.setLineDash([]);
+  } else if (style === 'kreis') {
+    c.strokeStyle = col; c.lineWidth = Math.max(3, m.h * 0.035);
+    c.lineCap = 'round';
+    c.beginPath();
+    c.ellipse(0, 0, m.w * 0.58, m.h * 0.72, -0.04, 0.25, Math.PI * 2 + 0.55);
+    c.stroke();
+  } else if (style === 'underline') {
+    c.strokeStyle = col; c.lineWidth = Math.max(3, el.size * 0.09);
+    c.lineCap = 'round';
+    lineWidths.forEach((lw, i) => {
+      const by = y + m.padY + m.lh * (i + 0.92);
+      let bx = -lw / 2;
+      if (el.align === 'left') bx = x + m.padX;
+      if (el.align === 'right') bx = -x - m.padX - lw;
+      c.beginPath();
+      c.moveTo(bx, by);
+      c.quadraticCurveTo(bx + lw / 2, by + el.size * 0.1, bx + lw, by - el.size * 0.02);
+      c.stroke();
+    });
+  }
+  c.restore();
+}
+function shadeHex(hex, amt) {
+  const h = hex.replace('#', '');
+  const n = [0, 2, 4].map(i => Math.max(0, Math.min(255, parseInt(h.slice(i, i + 2), 16) + amt)));
+  return '#' + n.map(v => v.toString(16).padStart(2, '0')).join('');
+}
+function mulbT(seed) {
+  return function () {
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+/* draw one line, honoring text effects */
+function drawStyledLine(c, el, ln, x, y) {
+  const eff = el.effect || 'none';
+  if (eff === 'gold') {
+    const w = Math.max(10, c.measureText(ln).width);
+    const g = c.createLinearGradient(x - w / 2, y - el.size / 2, x + w / 2, y + el.size / 2);
+    ['#8c6a2f', '#e8cf96', '#c9a15f', '#f6e7b8', '#a37d3d'].forEach((col, i) => g.addColorStop(i / 4, col));
+    c.fillStyle = g;
+    c.fillText(ln, x, y);
+  } else if (eff === 'neon') {
+    c.save();
+    c.shadowColor = el.color; c.shadowBlur = el.size * 0.55;
+    c.fillStyle = el.color; c.fillText(ln, x, y); c.fillText(ln, x, y);
+    c.shadowBlur = el.size * 0.2;
+    c.fillStyle = '#ffffff'; c.fillText(ln, x, y);
+    c.restore();
+  } else if (eff === '3d') {
+    c.fillStyle = shadeHex(el.color, -70);
+    const off = Math.max(2, el.size * 0.045);
+    c.fillText(ln, x + off, y + off);
+    c.fillText(ln, x + off * 0.6, y + off * 0.6);
+    c.fillStyle = el.color;
+    c.fillText(ln, x, y);
+  } else if (eff === 'kontur') {
+    c.strokeStyle = el.color;
+    c.lineWidth = Math.max(1.5, el.size * 0.05);
+    c.strokeText(ln, x, y);
+  } else {
+    if (el.outline) {
+      c.strokeStyle = el.outlineColor || '#ffffff';
+      c.lineWidth = el.size * 0.08;
+      c.strokeText(ln, x, y);
+    }
+    c.fillStyle = el.color;
+    c.fillText(ln, x, y);
+  }
+}
+
+/* curved single line (per-char along an arc) */
+function drawCurvedLine(c, el, ln, cy) {
+  const curve = SS.clamp(el.curve || 0, -100, 100);
+  const chars = [...ln];
+  const widths = chars.map(ch => c.measureText(ch).width + (el.letterSpacing || 0));
+  const total = widths.reduce((a, b) => a + b, 0);
+  const R = Math.max(total * 0.6, 26000 / Math.abs(curve));
+  const dir = curve > 0 ? 1 : -1;
+  const totalAngle = total / R;
+  let a = -totalAngle / 2;
+  c.save();
+  c.translate(0, cy + dir * R);
+  c.textAlign = 'center';
+  for (let i = 0; i < chars.length; i++) {
+    const half = widths[i] / 2 / R;
+    a += half;
+    c.save();
+    c.rotate(a * dir);
+    c.translate(0, -dir * R);
+    drawStyledLine(c, el, chars[i], 0, 0);
+    c.restore();
+    a += half;
+  }
+  c.restore();
+}
+
 SS.drawTextEl = function (c, el) {
   const m = SS.measureText(el);
   const lines = (el.content || ' ').split('\n');
@@ -143,54 +349,57 @@ SS.drawTextEl = function (c, el) {
   c.rotate(SS.deg2rad(el.rot));
   c.globalAlpha = el.opacity ?? 1;
 
-  if (el.bgStyle && el.bgStyle !== 'none') {
-    c.fillStyle = el.bgColor || '#ffffff';
-    c.globalAlpha = (el.opacity ?? 1) * (el.bgAlpha ?? 0.85);
-    const r = el.bgStyle === 'pill' ? m.h / 2 : Math.min(18, m.h / 4);
-    const x = -m.w / 2, y = -m.h / 2;
-    c.beginPath();
-    c.moveTo(x + r, y);
-    c.arcTo(x + m.w, y, x + m.w, y + m.h, r);
-    c.arcTo(x + m.w, y + m.h, x, y + m.h, r);
-    c.arcTo(x, y + m.h, x, y, r);
-    c.arcTo(x, y, x + m.w, y, r);
-    c.closePath(); c.fill();
-    c.globalAlpha = el.opacity ?? 1;
-  }
-
   c.font = SS.fontCSS(el);
-  c.fillStyle = el.color;
   c.textBaseline = 'middle';
   if (el.letterSpacing) c.letterSpacing = el.letterSpacing + 'px';
+  const lineWidths = lines.map(ln => c.measureText(ln).width);
+
+  paintTextBg(c, el, m, lineWidths);
+
   if (el.shadow) {
     c.shadowColor = 'rgba(30,15,8,.45)';
     c.shadowBlur = el.size * 0.18; c.shadowOffsetY = el.size * 0.05;
   }
   const innerW = m.w - m.padX * 2;
   lines.forEach((ln, i) => {
-    const lw = c.measureText(ln).width;
     let x;
     if (el.align === 'left') { x = -innerW / 2; c.textAlign = 'left'; }
     else if (el.align === 'right') { x = innerW / 2; c.textAlign = 'right'; }
     else { x = 0; c.textAlign = 'center'; }
     const y = -m.h / 2 + m.padY + m.lh * (i + 0.5);
-    if (el.outline) {
-      c.strokeStyle = el.outlineColor || '#ffffff';
-      c.lineWidth = el.size * 0.08;
-      c.strokeText(ln, x, y);
-    }
-    c.fillText(ln, x, y);
+    if (el.curve) drawCurvedLine(c, el, ln, y);
+    else drawStyledLine(c, el, ln, x, y);
   });
   if (el.letterSpacing) c.letterSpacing = '0px';
   c.restore();
 };
 
-/* ---------- sticker drawing ---------- */
+/* ---------- sticker drawing (with animation) ---------- */
+SS.animT = 0;   // seconds; advanced by the animation loop / video export
 SS.drawStickerEl = function (c, el) {
   c.save();
   c.translate(el.x, el.y);
   c.rotate(SS.deg2rad(el.rot));
   c.globalAlpha = el.opacity ?? 1;
+  const anim = el.anim || 'none';
+  if (anim !== 'none') {
+    const t = SS.animT + (el.id.length % 7) * 0.4;   // phase offset per element
+    if (anim === 'pulse') {
+      const s = 1 + 0.09 * Math.sin(t * 4.2);
+      c.scale(s, s);
+    } else if (anim === 'twinkle') {
+      c.globalAlpha *= 0.62 + 0.38 * (0.5 + 0.5 * Math.sin(t * 5));
+      const s = 1 + 0.06 * Math.sin(t * 5);
+      c.scale(s, s);
+    } else if (anim === 'float') {
+      c.translate(0, Math.sin(t * 1.8) * el.s * 0.05);
+      c.rotate(Math.sin(t * 1.2) * 0.05);
+    } else if (anim === 'spin') {
+      c.rotate(t * 0.8);
+    } else if (anim === 'wobble') {
+      c.rotate(Math.sin(t * 6) * 0.09);
+    }
+  }
   if (el.type === 'emoji') {
     c.font = `${el.s * 0.9}px system-ui, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji"`;
     c.textAlign = 'center'; c.textBaseline = 'middle';
@@ -283,12 +492,34 @@ SS.paintScene = function (c, W, H, opts = {}) {
       const card = SS.photoCard(el);
       if (card) drawCardWithShadow(c, el, card);
     } else if (el.type === 'text') {
+      if (el.bgStyle === 'glass') {
+        // frosted glass: blur the region beneath the text box
+        const m = SS.measureText(el);
+        const snap = document.createElement('canvas');
+        snap.width = W; snap.height = H;
+        snap.getContext('2d').drawImage(c.canvas, 0, 0);
+        SS.drawBlurEl(c, { x: el.x, y: el.y, rot: el.rot, w: m.w, h: m.h,
+          shape: 'rect', strength: 14, pixelate: false }, snap);
+        c.save();
+        c.translate(el.x, el.y); c.rotate(SS.deg2rad(el.rot));
+        c.globalAlpha = (el.bgAlpha ?? 0.85) * 0.4;
+        c.fillStyle = el.bgColor || '#ffffff';
+        roundRectPath(c, -m.w / 2, -m.h / 2, m.w, m.h, Math.min(18, m.h / 4));
+        c.fill();
+        c.globalAlpha = 0.5;
+        c.strokeStyle = 'rgba(255,255,255,.65)'; c.lineWidth = 1.5;
+        roundRectPath(c, -m.w / 2, -m.h / 2, m.w, m.h, Math.min(18, m.h / 4));
+        c.stroke();
+        c.restore();
+      }
       SS.drawTextEl(c, el);
     } else if (el.type === 'sticker' || el.type === 'emoji') {
       SS.drawStickerEl(c, el);
     }
   }
 };
+
+SS.hasAnimation = () => SS.state.elements.some(e => e.anim && e.anim !== 'none');
 
 /* ---------- screen render ---------- */
 SS.render = function () {

@@ -13,6 +13,18 @@ SS.PALETTES = [
   { id: 'nebel',      name: 'Nebelgrau',     c: ['#f0efed', '#dedcd8', '#c8c5c0', '#f6f5f3'] },
   { id: 'nacht',      name: 'Mitternacht',   c: ['#2e3244', '#3d4258', '#232637', '#454b63'] },
   { id: 'schwarzgold',name: 'Schwarz & Gold',c: ['#26211c', '#332c24', '#1c1815', '#3d342a'] },
+  { id: 'peach',      name: 'Peach Fuzz',    c: ['#ffd9c4', '#ffc4a8', '#ffe8da', '#ffb28f'] },
+  { id: 'lavhaze',    name: 'Lavender Haze', c: ['#e6dcf5', '#cdbcec', '#f2ecfa', '#b7a3e0'] },
+  { id: 'mocha',      name: 'Mocha',         c: ['#d9c4b2', '#c0a288', '#e8dccf', '#a58265'] },
+  { id: 'sunset',     name: 'Sunset',        c: ['#ffd2a8', '#f5a58c', '#fde7c8', '#e88a9a'] },
+  { id: 'ocean',      name: 'Ocean',         c: ['#cfe6e4', '#a8cfd2', '#e4f1ef', '#7fb2ba'] },
+  { id: 'champagner', name: 'Champagner',    c: ['#f3e5cf', '#e8d3ac', '#faf3e5', '#d9bd8a'] },
+  { id: 'smaragd',    name: 'Smaragd',       c: ['#1e4038', '#2a5548', '#16302a', '#38695a'] },
+  { id: 'bordeaux',   name: 'Bordeaux',      c: ['#5a2432', '#71303f', '#451a25', '#8a4252'] },
+  { id: 'nachtgold',  name: 'Nachtblau Gold',c: ['#1d2436', '#2a3450', '#151a28', '#3a4668'] },
+  { id: 'mint',       name: 'Mint',          c: ['#d8efe3', '#b8dfcc', '#eaf7f0', '#98cfb4'] },
+  { id: 'puder',      name: 'Puderrosa',     c: ['#f7dfe2', '#f0c9cf', '#fceff0', '#e6afb9'] },
+  { id: 'graphit',    name: 'Graphit',       c: ['#3a3a3e', '#4a4a50', '#2c2c30', '#5c5c64'] },
 ];
 
 // deterministic pseudo random
@@ -136,6 +148,99 @@ function paintTexture(ctx, W, H, kind, tintHex) {
   ctx.restore();
 }
 
+// ---- premium textures ----
+function paintPremiumTexture(ctx, W, H, kind, seed) {
+  const rnd = mulberry(700 + seed);
+  if (kind === 'samt') {
+    const g = ctx.createLinearGradient(0, 0, W * 0.3, H);
+    g.addColorStop(0, '#4a2436'); g.addColorStop(0.5, '#5f2e44'); g.addColorStop(1, '#3a1b2a');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    for (let i = 0; i < 6; i++) {
+      const sh = ctx.createRadialGradient(rnd() * W, rnd() * H, 50, rnd() * W, rnd() * H, 500);
+      sh.addColorStop(0, 'rgba(255,255,255,0.06)'); sh.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = sh; ctx.fillRect(0, 0, W, H);
+    }
+    paintGrain(ctx, W, H, 0.06, seed);
+  } else if (kind === 'seide') {
+    const g = ctx.createLinearGradient(0, 0, W, H * 0.6);
+    ['#efe6dc', '#fdf8f1', '#e2d5c6', '#f8f0e6', '#e8dccd'].forEach((c, i) => g.addColorStop(i / 4, c));
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 0.25;
+    for (let i = 0; i < 10; i++) {
+      const x = rnd() * W;
+      const lg = ctx.createLinearGradient(x - 200, 0, x + 200, 0);
+      lg.addColorStop(0, 'rgba(255,255,255,0)'); lg.addColorStop(0.5, 'rgba(255,255,255,0.7)');
+      lg.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = lg; ctx.fillRect(x - 200, 0, 400, H);
+    }
+    ctx.globalAlpha = 1;
+  } else if (kind === 'goldstaub') {
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, '#241d16'); g.addColorStop(1, '#171310');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    for (let i = 0; i < W * H / 2600; i++) {
+      const a = 0.15 + rnd() * 0.85;
+      ctx.fillStyle = `rgba(${205 + rnd() * 50},${160 + rnd() * 50},${90 + rnd() * 40},${a})`;
+      const r = rnd() < 0.94 ? 0.8 + rnd() * 1.8 : 2.5 + rnd() * 3;
+      ctx.beginPath(); ctx.arc(rnd() * W, rnd() * H, r, 0, 7); ctx.fill();
+    }
+  } else if (kind === 'bokeh') {
+    const g = ctx.createLinearGradient(0, 0, W * 0.2, H);
+    g.addColorStop(0, '#2a2030'); g.addColorStop(1, '#1a1420');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    const cols = ['255,205,150', '255,170,160', '210,170,255', '255,230,180'];
+    for (let i = 0; i < Math.max(24, W / 130); i++) {
+      const r = 20 + rnd() * 90;
+      const col = cols[Math.floor(rnd() * cols.length)];
+      const gr = ctx.createRadialGradient(0, 0, r * 0.2, 0, 0, r);
+      gr.addColorStop(0, `rgba(${col},${0.25 + rnd() * 0.3})`);
+      gr.addColorStop(0.8, `rgba(${col},${0.12 + rnd() * 0.15})`);
+      gr.addColorStop(1, `rgba(${col},0)`);
+      ctx.save(); ctx.translate(rnd() * W, rnd() * H);
+      ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill(); ctx.restore();
+    }
+  } else if (kind === 'marmorgold') {
+    ctx.fillStyle = '#232122'; ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 0.16; ctx.strokeStyle = '#4a4648';
+    for (let i = 0; i < Math.max(12, W / 260); i++) {
+      ctx.lineWidth = 1 + rnd() * 3; ctx.beginPath();
+      let x = rnd() * W, y = rnd() * H; ctx.moveTo(x, y);
+      for (let k = 0; k < 12; k++) { x += (rnd() - 0.5) * 380; y += (rnd() - 0.5) * 300; ctx.lineTo(x, y); }
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 0.75; ctx.strokeStyle = '#c9a15f';
+    for (let i = 0; i < Math.max(5, W / 700); i++) {
+      ctx.lineWidth = 0.8 + rnd() * 1.6; ctx.beginPath();
+      let x = rnd() * W, y = rnd() * H; ctx.moveTo(x, y);
+      for (let k = 0; k < 16; k++) {
+        x += (rnd() - 0.5) * 300; y += (rnd() - 0.5) * 240;
+        ctx.quadraticCurveTo(x + (rnd() - 0.5) * 90, y + (rnd() - 0.5) * 90, x, y);
+      }
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  } else if (kind === 'putz') {
+    ctx.fillStyle = '#dfb9a2'; ctx.fillRect(0, 0, W, H);
+    paintGrain(ctx, W, H, 0.16, seed);
+    ctx.globalAlpha = 0.07; ctx.fillStyle = '#8a5a40';
+    for (let i = 0; i < W / 4; i++) ctx.fillRect(rnd() * W, rnd() * H, 1 + rnd() * 60, 1 + rnd() * 2);
+    ctx.globalAlpha = 1;
+  } else if (kind === 'aquanass') {
+    ctx.fillStyle = '#fbf7f0'; ctx.fillRect(0, 0, W, H);
+    const cols = ['#e8b4b8aa', '#b8cfc4aa', '#d9c4e0aa', '#e8d3a8aa', '#a8c4d9aa'];
+    for (let i = 0; i < Math.max(8, W / 420); i++) {
+      const cx = rnd() * W, cy = rnd() * H, r = 120 + rnd() * 260;
+      const gr = ctx.createRadialGradient(cx, cy, r * 0.1, cx, cy, r);
+      const col = cols[Math.floor(rnd() * cols.length)];
+      gr.addColorStop(0, col); gr.addColorStop(0.85, col.slice(0, 7) + '33'); gr.addColorStop(1, col.slice(0, 7) + '00');
+      ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(cx, cy, r, 0, 7); ctx.fill();
+      ctx.strokeStyle = col.slice(0, 7) + '66'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(cx, cy, r * (0.75 + rnd() * 0.2), 0, 7); ctx.stroke();
+    }
+    paintGrain(ctx, W, H, 0.05, seed);
+  }
+}
+
 function paintPattern(ctx, W, H, kind, baseHex, inkHex) {
   ctx.fillStyle = baseHex; ctx.fillRect(0, 0, W, H);
   ctx.save();
@@ -175,6 +280,48 @@ function paintPattern(ctx, W, H, kind, baseHex, inkHex) {
         ctx.lineTo(x + Math.cos(a) * r * (0.6 + rnd() * 0.6), y + Math.sin(a) * r * (0.6 + rnd() * 0.6));
       ctx.closePath(); ctx.fill();
     }
+  } else if (kind === 'boho') {
+    const s = 160;
+    ctx.lineWidth = 3; ctx.globalAlpha = 0.45;
+    for (let y = 0; y < H + s; y += s * 0.62)
+      for (let x = ((y / (s * 0.62)) % 2) * s / 2; x < W + s; x += s) {
+        for (let r = s * 0.42; r > 6; r -= s * 0.11) {
+          ctx.beginPath(); ctx.arc(x, y, r, Math.PI, 0); ctx.stroke();
+        }
+      }
+  } else if (kind === 'checker') {
+    const s = 110;
+    for (let y = 0; y < H; y += s)
+      for (let x = (Math.floor(y / s) % 2) * s; x < W; x += s * 2)
+        ctx.fillRect(x, y, s, s);
+  } else if (kind === 'wellen') {
+    ctx.lineWidth = 3.5; ctx.globalAlpha = 0.4;
+    for (let y = 30; y < H; y += 64) {
+      ctx.beginPath();
+      for (let x = 0; x <= W; x += 6) {
+        const yy = y + Math.sin(x / 52) * 14;
+        x === 0 ? ctx.moveTo(x, yy) : ctx.lineTo(x, yy);
+      }
+      ctx.stroke();
+    }
+  } else if (kind === 'konfetti') {
+    const rnd = mulberry(31);
+    const cols = [inkHex, '#d9a8b4', '#c9b88a', '#a8bfc9', '#c4aed0'];
+    for (let i = 0; i < W * H / 16000; i++) {
+      ctx.fillStyle = cols[Math.floor(rnd() * cols.length)];
+      ctx.globalAlpha = 0.5 + rnd() * 0.4;
+      ctx.save(); ctx.translate(rnd() * W, rnd() * H); ctx.rotate(rnd() * 6.3);
+      rnd() < 0.5 ? ctx.fillRect(-6, -2.5, 12, 5) : (ctx.beginPath(), ctx.arc(0, 0, 4, 0, 7), ctx.fill());
+      ctx.restore();
+    }
+  } else if (kind === 'dotgrid') {
+    ctx.globalAlpha = 0.5;
+    for (let y = 30; y < H; y += 46)
+      for (let x = 30; x < W; x += 46) { ctx.beginPath(); ctx.arc(x, y, 2.2, 0, 7); ctx.fill(); }
+  } else if (kind === 'karopapier') {
+    ctx.lineWidth = 1.2; ctx.globalAlpha = 0.4;
+    for (let x = 0; x < W; x += 44) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+    for (let y = 0; y < H; y += 44) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
   }
   ctx.restore();
 }
@@ -220,11 +367,24 @@ SS.BG_LIB = [];
       SS.BG_LIB.push({ id: `tx-${kind}-${i}`, cat: 'textur', name: texNames[kind] + (i ? ' getönt' : ''),
         paint: (ctx, W, H) => paintTexture(ctx, W, H, kind, tint) }));
 
+  const premium = [
+    ['samt', 'Samt Bordeaux'], ['seide', 'Seide'], ['goldstaub', 'Goldstaub'],
+    ['bokeh', 'Bokeh-Lichter'], ['marmorgold', 'Marmor & Gold'], ['putz', 'Terrakotta-Putz'],
+    ['aquanass', 'Aquarell nass'],
+  ];
+  premium.forEach(([kind, name], i) =>
+    SS.BG_LIB.push({ id: `pr-${kind}`, cat: 'textur', name,
+      paint: (ctx, W, H) => paintPremiumTexture(ctx, W, H, kind, i) }));
+
   const patDefs = [
     ['punkte', 'Punkte', '#f8f0ea', '#d9b8ad'], ['punkte', 'Punkte dunkel', '#2e3244', '#5d647e'],
     ['sterne', 'Sternchen', '#faf5ec', '#d4b483'], ['sterne', 'Sterne Nacht', '#2b2f40', '#c9a876'],
     ['herzen', 'Herzchen', '#faefee', '#dfa8b2'], ['streifen', 'Streifen', '#f6efe7', '#e3cdbb'],
     ['karo', 'Karo', '#f5f1ea', '#d8c8b4'], ['terrazzo', 'Terrazzo', '#f6f1e9', '#cdb9a4'],
+    ['boho', 'Boho-Bögen', '#f4ead9', '#c9a382'], ['boho', 'Boho Nacht', '#2c2620', '#8a744f'],
+    ['checker', 'Checkerboard', '#f6f0e6', '#e0d2ba'], ['wellen', 'Wellen', '#eef2f0', '#a8c4bc'],
+    ['konfetti', 'Konfetti', '#fdf9f2', '#d9a8b4'], ['dotgrid', 'Dot-Grid', '#f8f5ef', '#b8a890'],
+    ['karopapier', 'Karopapier', '#fbf8f2', '#c9d4e0'],
   ];
   patDefs.forEach(([kind, name, base, ink], i) =>
     SS.BG_LIB.push({ id: `pt-${kind}-${i}`, cat: 'muster', name,
@@ -248,6 +408,15 @@ SS.paintBackground = function (ctx, W, H, forExport) {
   if (bg.type === 'preset') {
     const def = SS.BG_LIB.find(b => b.id === bg.id) || SS.BG_LIB[0];
     def.paint(c, W, H);
+    if (bg.hue) {  // global hue-shift → every preset becomes any color world
+      const tmp = document.createElement('canvas');
+      tmp.width = W; tmp.height = H;
+      const tc = tmp.getContext('2d');
+      tc.filter = `hue-rotate(${bg.hue}deg)`;
+      tc.drawImage(cv, 0, 0);
+      c.clearRect(0, 0, W, H);
+      c.drawImage(tmp, 0, 0);
+    }
   } else if (bg.type === 'gradient') {
     const a = SS.deg2rad(bg.angle || 115);
     const r = Math.max(W, H);

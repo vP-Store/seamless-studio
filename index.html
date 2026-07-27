@@ -5,16 +5,44 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Seamless Studio – Panorama Carousel Editor</title>
 <meta name="description" content="Editor für Instagram Seamless-Panorama-Carousels. 100% offline – deine Fotos bleiben auf deinem Gerät.">
-<meta name="theme-color" content="#f6ede8">
+<meta name="theme-color" content="#171412">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="stylesheet" href="fonts.css">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+
+<!-- ======= SVG ICON SPRITE ======= -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-photo" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="9" cy="10" r="1.8" fill="currentColor"/><path d="M4 17l4.5-4.5 3.5 3.5 3-3L20 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-bg" viewBox="0 0 24 24"><path d="M12 3.5c-4.7 0-8.5 3.6-8.5 8.2 0 4.5 3.6 8.3 8.2 8.3 1.2 0 2-.9 2-1.9 0-.5-.2-.9-.5-1.3-.3-.3-.5-.7-.5-1.2 0-1 .8-1.8 1.8-1.8h2.2c2.6 0 4.8-2 4.8-4.6C21.5 6.1 17.2 3.5 12 3.5z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="8" cy="9" r="1.3" fill="currentColor"/><circle cx="13" cy="7.4" r="1.3" fill="currentColor"/><circle cx="7.4" cy="13.5" r="1.3" fill="currentColor"/></symbol>
+  <symbol id="i-text" viewBox="0 0 24 24"><path d="M5 7V4.8h14V7M12 4.8V19.5M9 19.5h6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+  <symbol id="i-sticker" viewBox="0 0 24 24"><path d="M12 20.5s-7.8-4.6-7.8-10A4.6 4.6 0 0 1 12 7.6a4.6 4.6 0 0 1 7.8 2.9c0 5.4-7.8 10-7.8 10z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+  <symbol id="i-magic" viewBox="0 0 24 24"><path d="M6 18L16.5 7.5M14.8 5.8l3.4 3.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M19 13.5l.6 1.6 1.6.6-1.6.6-.6 1.6-.6-1.6-1.6-.6 1.6-.6zM6.5 4l.5 1.4L8.4 6l-1.4.5L6.5 8 6 6.5 4.6 6 6 5.4z" fill="currentColor"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3.5 7.5c0-1.1.9-2 2-2h4l2 2.3h7c1.1 0 2 .9 2 2v7.7c0 1.1-.9 2-2 2h-13c-1.1 0-2-.9-2-2z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+  <symbol id="i-undo" viewBox="0 0 24 24"><path d="M8 6L4 10l4 4M4.5 10H15a5 5 0 0 1 0 10h-3" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-redo" viewBox="0 0 24 24"><path d="M16 6l4 4-4 4M19.5 10H9a5 5 0 0 0 0 10h3" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-guides" viewBox="0 0 24 24"><path d="M9 4v16M15 4v16" stroke="currentColor" stroke-width="1.8" stroke-dasharray="2.5 3" stroke-linecap="round" fill="none"/><rect x="3" y="4" width="18" height="16" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+  <symbol id="i-theme" viewBox="0 0 24 24"><path d="M12 3.5a8.5 8.5 0 1 0 0 17c.8 0 1.2-.9.7-1.5a6.2 6.2 0 0 1 4.9-10.2c.8 0 1.2-.9.6-1.5A8.4 8.4 0 0 0 12 3.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12S6 5.8 12 5.8 21.5 12 21.5 12 18 18.2 12 18.2 2.5 12 2.5 12z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+  <symbol id="i-export" viewBox="0 0 24 24"><path d="M12 3.5v11M8 10.5l4 4 4-4M4.5 16.5v2.5c0 1 .9 1.5 2 1.5h11c1.1 0 2-.5 2-1.5v-2.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></symbol>
+  <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></symbol>
+  <symbol id="i-pipette" viewBox="0 0 24 24"><path d="M13.6 6.8l3.6 3.6M15.4 5l1.8-1.8a2 2 0 0 1 2.8 0l.8.8a2 2 0 0 1 0 2.8L19 8.6M15.4 5l3.6 3.6M14.5 7.7L5.9 16.3c-.4.4-.7 1-.8 1.6l-.4 2.6a.7.7 0 0 0 .8.8l2.6-.4c.6-.1 1.2-.4 1.6-.8l8.6-8.6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</svg>
+
+<!-- ======= SPLASH ======= -->
+<div id="splash">
+  <div class="splash-inner">
+    <div class="splash-logo">✦</div>
+    <div class="splash-name"><b>Seamless</b> Studio</div>
+    <div class="splash-bar"><div></div></div>
+  </div>
+</div>
 
 <!-- ======= TOP BAR ======= -->
 <header id="topbar">
@@ -28,37 +56,37 @@
       <option value="9:16">Story 9:16</option>
     </select>
     <div class="slidectrl" id="slideCtrl">
-      <button id="slidesMinus" title="Slide entfernen">−</button>
+      <button id="slidesMinus" title="Slide entfernen"><svg><use href="#i-minus"/></svg></button>
       <span id="slidesLabel">5 Slides</span>
-      <button id="slidesPlus" title="Slide hinzufügen">+</button>
+      <button id="slidesPlus" title="Slide hinzufügen"><svg><use href="#i-plus"/></svg></button>
     </div>
   </div>
   <div class="tb-right">
-    <button id="btnUndo" class="icon-btn" title="Rückgängig (Strg+Z)">↩</button>
-    <button id="btnRedo" class="icon-btn" title="Wiederholen (Strg+Y)">↪</button>
-    <button id="btnGuides" class="icon-btn active" title="Schnittkanten anzeigen">⋮⋮</button>
-    <button id="btnTheme" class="icon-btn" title="Hell/Dunkel">◐</button>
-    <button id="btnExport" class="primary">Exportieren</button>
+    <button id="btnUndo" class="icon-btn" title="Rückgängig"><svg><use href="#i-undo"/></svg></button>
+    <button id="btnRedo" class="icon-btn" title="Wiederholen"><svg><use href="#i-redo"/></svg></button>
+    <button id="btnGuides" class="icon-btn active" title="Schnittkanten"><svg><use href="#i-guides"/></svg></button>
+    <button id="btnTheme" class="icon-btn" title="Hell/Dunkel"><svg><use href="#i-theme"/></svg></button>
+    <button id="btnPreview" class="icon-btn" title="Wisch-Vorschau"><svg><use href="#i-eye"/></svg></button>
+    <button id="btnExport" class="primary"><svg><use href="#i-export"/></svg><span>Export</span></button>
   </div>
 </header>
 
 <!-- ======= MAIN ======= -->
 <div id="main">
 
-  <!-- Tool tabs -->
   <nav id="toolbar">
-    <button data-panel="photos"  class="tool active" title="Fotos"><span>🖼️</span><label>Fotos</label></button>
-    <button data-panel="bg"      class="tool" title="Hintergrund"><span>🎨</span><label>Hintergrund</label></button>
-    <button data-panel="text"    class="tool" title="Text"><span>🅣</span><label>Text</label></button>
-    <button data-panel="stickers"class="tool" title="Sticker"><span>💛</span><label>Sticker</label></button>
-    <button data-panel="layout"  class="tool" title="Auto-Layout"><span>✨</span><label>Layout</label></button>
-    <button data-panel="project" class="tool" title="Projekt"><span>📁</span><label>Projekt</label></button>
+    <button data-panel="photos"  class="tool active"><svg><use href="#i-photo"/></svg><label>Fotos</label></button>
+    <button data-panel="bg"      class="tool"><svg><use href="#i-bg"/></svg><label>Hintergrund</label></button>
+    <button data-panel="text"    class="tool"><svg><use href="#i-text"/></svg><label>Text</label></button>
+    <button data-panel="stickers"class="tool"><svg><use href="#i-sticker"/></svg><label>Sticker</label></button>
+    <button data-panel="layout"  class="tool"><svg><use href="#i-magic"/></svg><label>Studio</label></button>
+    <button data-panel="project" class="tool"><svg><use href="#i-folder"/></svg><label>Projekt</label></button>
   </nav>
 
-  <!-- Side panel -->
   <aside id="sidepanel">
     <div class="sheet-handle"></div>
     <button id="panelClose" title="Schließen">✕</button>
+
     <!-- FOTOS -->
     <section class="panel active" id="panel-photos">
       <h3>Fotos</h3>
@@ -67,7 +95,7 @@
         <div>📷<br><b>Fotos hinzufügen</b><br><small>tippen oder hierher ziehen</small></div>
       </label>
       <div id="photoShelf" class="shelf"></div>
-      <p class="hint">Tipp: Foto auf der Leinwand antippen, um Rahmen &amp; Filter zu ändern.</p>
+      <p class="hint">Tipp: Foto auf der Leinwand antippen → unten „Bearbeiten" für Rahmen, Filter &amp; Zuschnitt.</p>
     </section>
 
     <!-- HINTERGRUND -->
@@ -77,12 +105,14 @@
         <button data-cat="aquarell" class="active">Aquarell</button>
         <button data-cat="textur">Textur</button>
         <button data-cat="muster">Muster</button>
+        <button data-cat="look">✦ Looks</button>
         <button data-cat="eigene">Eigene</button>
       </div>
       <div id="bgGrid" class="grid"></div>
+      <div id="bgHueRow" class="ctl"><span>🎨 Farbton</span><input type="range" id="bgHue" min="-180" max="180" value="0"><button id="bgHueReset" class="mini-btn">↺</button></div>
       <div id="bgCustom" class="hidden">
         <label class="dropzone small">
-          <input type="file" id="bgFileInput" accept="image/*" hidden>
+          <input type="file" id="bgFileInput" accept="image/*" class="file-overlay">
           <div>🖼️ Eigenes Bild wählen</div>
         </label>
         <div class="ctl"><span>Weichzeichnen</span><input type="range" id="bgBlur" min="0" max="40" value="0"></div>
@@ -99,7 +129,7 @@
     <section class="panel" id="panel-text">
       <h3>Text</h3>
       <button id="addText" class="wide primary">＋ Textfeld erzeugen</button>
-      <p class="hint">Das Textfeld erscheint auf der Leinwand – einfach verschieben und drehen. Bearbeiten unten im Eigenschaften-Bereich.</p>
+      <p class="hint">Frei verschieben &amp; drehen. Schrift, Effekte, Bogen und Hintergrund unten im Bearbeiten-Menü.</p>
       <div class="fontpreviews" id="fontPreviews"></div>
     </section>
 
@@ -109,44 +139,60 @@
       <div class="subtabs" id="stTabs">
         <button data-cat="herzen" class="active">Herzen</button>
         <button data-cat="funkeln">Funkeln</button>
+        <button data-cat="feiern">Feiern</button>
         <button data-cat="natur">Natur</button>
         <button data-cat="baby">Baby</button>
-        <button data-cat="linien">Linien</button>
+        <button data-cat="linien">Deko</button>
         <button data-cat="privacy">🔒 Privacy</button>
       </div>
       <div id="stGrid" class="grid sticker-grid"></div>
       <div id="emojiRow">
-        <input type="text" id="emojiInput" placeholder="Emoji eingeben… 🎈" maxlength="4">
+        <input type="text" id="emojiInput" placeholder="Emoji… 🎈" maxlength="4">
         <button id="addEmoji">＋</button>
+        <label class="upload-chip" title="Eigenen Sticker (PNG) hochladen">
+          <input type="file" id="stickerFile" accept="image/*" class="file-overlay">⬆ PNG
+        </label>
       </div>
     </section>
 
-    <!-- LAYOUT -->
+    <!-- STUDIO (Layout, Vorlagen, Ausrichten) -->
     <section class="panel" id="panel-layout">
-      <h3>Auto-Layout</h3>
-      <p class="hint">Ordnet alle Fotos automatisch an: versetzt, leicht gekantelt, ohne Überlappung – über die Schnittkanten laufend.</p>
-      <button id="autoLayout" class="wide primary">✨ Fotos automatisch anordnen</button>
+      <h3>✨ Auto-Layout</h3>
+      <button id="autoLayout" class="wide primary">Fotos automatisch anordnen</button>
       <button id="autoShuffle" class="wide">🎲 Neue Variante würfeln</button>
-      <hr>
       <div class="ctl"><span>Kantelung</span><input type="range" id="alTilt" min="0" max="8" value="3" step="0.5"></div>
-      <div class="ctl"><span>Versatz hoch/tief</span><input type="range" id="alStagger" min="0" max="200" value="90"></div>
+      <div class="ctl"><span>Versatz</span><input type="range" id="alStagger" min="0" max="200" value="90"></div>
+      <h3>📐 Ausrichten <small>(gewähltes Element)</small></h3>
+      <div class="btnrow">
+        <button id="alignH" class="chip-btn">↔ Mittig H</button>
+        <button id="alignV" class="chip-btn">↕ Mittig V</button>
+        <button id="alignSlide" class="chip-btn">◎ Slide-Mitte</button>
+      </div>
+      <div class="btnrow">
+        <button id="distribute" class="chip-btn">⇹ Fotos verteilen</button>
+        <button id="sameSize" class="chip-btn">⧉ Gleiche Größe</button>
+      </div>
+      <h3>🎨 Vorlagen-Looks</h3>
+      <div id="tplGrid" class="grid tpl-grid"></div>
     </section>
 
     <!-- PROJEKT -->
     <section class="panel" id="panel-project">
-      <h3>Projekt</h3>
+      <h3>Projekte</h3>
       <p class="hint" id="saveState">Automatisch gespeichert ✓</p>
+      <button id="projSaveAs" class="wide primary">＋ Als neues Projekt speichern</button>
+      <div id="projList" class="proj-list"></div>
+      <hr>
       <button id="projSave" class="wide">💾 Projekt als Datei sichern</button>
-      <label class="wide btn-like">📂 Projekt laden
-        <input type="file" id="projLoad" accept=".seamless,.json" hidden>
+      <label class="wide btn-like">📂 Projekt-Datei laden
+        <input type="file" id="projLoad" accept=".seamless,.json" class="file-overlay">
       </label>
-      <button id="projNew" class="wide danger">🗑 Neues leeres Projekt</button>
+      <button id="projNew" class="wide danger">🗑 Leinwand leeren</button>
       <hr>
       <p class="hint">Seamless Studio läuft zu 100 % auf deinem Gerät. Fotos werden niemals hochgeladen.</p>
     </section>
   </aside>
 
-  <!-- Canvas area -->
   <div id="stage">
     <canvas id="canvas"></canvas>
     <div id="emptyState">
@@ -167,7 +213,7 @@
   </div>
 </div>
 
-<!-- ======= PROPERTIES (context) ======= -->
+<!-- ======= PROPERTIES ======= -->
 <div id="props" class="hidden">
   <div class="props-head">
     <span id="propsTitle">Element</span>
@@ -187,17 +233,43 @@
 <div id="exportDlg" class="modal hidden">
   <div class="modal-card">
     <h3>Exportieren</h3>
-    <div class="ctl"><span>Qualität</span>
-      <select id="expScale"><option value="1">Standard (1080er Breite)</option><option value="2">2K – doppelt so scharf</option></select>
+    <div class="ctl"><span>Was?</span>
+      <select id="expType">
+        <option value="zip">🖼 Slides als Bilder (ZIP)</option>
+        <option value="video">🎬 Video mit Animation</option>
+      </select>
     </div>
-    <div class="ctl"><span>Format</span>
-      <select id="expFormat"><option value="jpeg">JPG (empfohlen)</option><option value="png">PNG</option></select>
+    <div id="expImgOpts">
+      <div class="ctl"><span>Qualität</span>
+        <select id="expScale"><option value="1">Standard (1080er)</option><option value="2">2K – doppelt scharf</option></select>
+      </div>
+      <div class="ctl"><span>Format</span>
+        <select id="expFormat"><option value="jpeg">JPG (empfohlen)</option><option value="png">PNG</option></select>
+      </div>
+    </div>
+    <div id="expVidOpts" class="hidden">
+      <div class="ctl"><span>Dauer</span>
+        <select id="expVidDur"><option value="6">6 Sekunden</option><option value="8" selected>8 Sekunden</option><option value="12">12 Sekunden</option></select>
+      </div>
+      <p class="hint">Die Kamera fährt sanft über dein Panorama, animierte Sticker bewegen sich. Perfekt für Story &amp; Reel.</p>
     </div>
     <div class="progress hidden" id="expProgress"><div></div></div>
     <div class="modal-btns">
       <button id="expCancel">Abbrechen</button>
       <button id="expShare" class="hidden">📤 Teilen…</button>
-      <button id="expGo" class="primary">⬇ ZIP herunterladen</button>
+      <button id="expGo" class="primary">⬇ Herunterladen</button>
+    </div>
+  </div>
+</div>
+
+<!-- ======= SWIPE PREVIEW ======= -->
+<div id="previewDlg" class="modal hidden">
+  <div class="preview-card">
+    <div class="preview-top"><span>So sieht dein Carousel aus — wische! 👉</span><button id="previewClose">✕</button></div>
+    <div class="phone">
+      <div class="phone-notch"></div>
+      <div id="previewTrack"></div>
+      <div id="previewDots"></div>
     </div>
   </div>
 </div>

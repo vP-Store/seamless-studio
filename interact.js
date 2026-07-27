@@ -67,6 +67,18 @@
     // iOS: stale pointers survive missed pointerup/cancel events —
     // a fresh primary pointer always starts a clean gesture
     if (ev.isPrimary) { pointers.clear(); mode = null; }
+    // eyedropper mode: sample the rendered pixel and hand it to the callback
+    if (SS.pickMode) {
+      try {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const d = canvas.getContext('2d').getImageData(ev.offsetX * dpr, ev.offsetY * dpr, 1, 1).data;
+        const hex = '#' + [d[0], d[1], d[2]].map(v => v.toString(16).padStart(2, '0')).join('');
+        const cb = SS.pickMode; SS.pickMode = null;
+        cb(hex);
+        SS.toast('✓ Farbe übernommen: ' + hex);
+      } catch (e) { SS.pickMode = null; }
+      return;
+    }
     canvas.setPointerCapture(ev.pointerId);
     pointers.set(ev.pointerId, { x: ev.offsetX, y: ev.offsetY });
 

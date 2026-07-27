@@ -51,8 +51,8 @@ SS.ui = {};
     SS.requestRender();
   };
   $('btnTheme').onclick = () => {
-    document.body.classList.toggle('dark');
-    try { localStorage.setItem('ss-theme', document.body.classList.contains('dark') ? 'dark' : 'light'); } catch (e) {}
+    document.body.classList.toggle('light');
+    try { localStorage.setItem('ss-theme', document.body.classList.contains('light') ? 'light' : 'dark'); } catch (e) {}
   };
 
   /* ================= zoom ================= */
@@ -141,7 +141,9 @@ SS.ui = {};
   function renderBgGrid(cat) {
     bgGrid.innerHTML = '';
     $('bgCustom').classList.toggle('hidden', cat !== 'eigene');
-    if (cat === 'eigene') { bgGrid.innerHTML = ''; return; }
+    $('bgHueRow').classList.toggle('hidden', cat === 'eigene' || cat === 'look');
+    if (cat === 'eigene') return;
+    if (cat === 'look') { renderLooks(); return; }
     for (const def of SS.BG_LIB.filter(b => b.cat === cat)) {
       const sw = document.createElement('button');
       sw.className = 'swatch' + (st.bg.type === 'preset' && st.bg.id === def.id ? ' sel' : '');
@@ -151,12 +153,62 @@ SS.ui = {};
       const lb = document.createElement('label'); lb.textContent = def.name;
       sw.appendChild(cv); sw.appendChild(lb);
       sw.onclick = () => {
-        st.bg = { type: 'preset', id: def.id };
+        st.bg = { type: 'preset', id: def.id, hue: +$('bgHue').value || 0 };
         SS.bgCacheInvalidate(); SS.pushHistory(); SS.requestRender();
         renderBgGrid(cat);
       };
       bgGrid.appendChild(sw);
     }
+  }
+  $('bgHue').addEventListener('input', () => {
+    if (st.bg.type === 'preset') {
+      st.bg.hue = +$('bgHue').value;
+      SS.bgCacheInvalidate(); SS.requestRender();
+    }
+  });
+  $('bgHue').addEventListener('change', () => SS.pushHistory());
+  $('bgHueReset').onclick = () => {
+    $('bgHue').value = 0;
+    if (st.bg.type === 'preset') { st.bg.hue = 0; SS.bgCacheInvalidate(); SS.pushHistory(); SS.requestRender(); }
+  };
+
+  /* ---- Looks: one tap = coordinated color scheme ---- */
+  function isDarkPal(pal) {
+    const [r, g, b] = SS.hex2rgb(pal.c[0]);
+    return (r * 0.3 + g * 0.6 + b * 0.1) < 120;
+  }
+  function renderLooks() {
+    for (const pal of SS.PALETTES) {
+      const sw = document.createElement('button');
+      sw.className = 'swatch';
+      const cv = document.createElement('canvas');
+      cv.width = 108; cv.height = 108;
+      const c = cv.getContext('2d');
+      pal.c.forEach((col, i) => { c.fillStyle = col; c.fillRect(0, i * 27, 108, 27); });
+      c.fillStyle = isDarkPal(pal) ? '#f0e6d8' : '#5c4a42';
+      c.font = 'italic 15px Lora'; c.textAlign = 'center';
+      c.fillText('Aa ✦', 54, 60);
+      const lb = document.createElement('label'); lb.textContent = pal.name;
+      sw.appendChild(cv); sw.appendChild(lb);
+      sw.onclick = () => applyLook(pal);
+      bgGrid.appendChild(sw);
+    }
+  }
+  function applyLook(pal) {
+    const dark = isDarkPal(pal);
+    st.bg = { type: 'preset', id: `aq-${pal.id}-1`, hue: 0 };
+    const inkCol = dark ? '#f2e9dc' : '#5c4a42';
+    const accCol = dark ? '#d4af7e' : pal.c[2];
+    for (const el of st.elements) {
+      if (el.type === 'text') el.color = inkCol;
+      if (el.type === 'sticker' && el.cat !== 'privacy') el.color = accCol;
+      if (el.type === 'photo') {
+        el.frame.color = dark ? '#2e2a26' : '#fdfbf8';
+        SS.invalidateEl(el);
+      }
+    }
+    SS.bgCacheInvalidate(); SS.pushHistory(); SS.ui.showProps(); SS.requestRender();
+    SS.toast(`✦ Look „${pal.name}" angewendet`);
   }
   document.querySelectorAll('#bgTabs button').forEach(b => {
     b.onclick = () => {
@@ -188,8 +240,13 @@ SS.ui = {};
   };
 
   /* ================= text panel ================= */
-  SS.FONTS = ['Lora', 'Playfair Display', 'Cormorant Garamond', 'Poppins', 'Montserrat',
-    'Dancing Script', 'Caveat', 'Great Vibes', 'Amatic SC', 'Courier Prime'];
+  SS.FONTS = ['Lora', 'Playfair Display', 'Cormorant Garamond', 'DM Serif Display',
+    'Libre Baskerville', 'Marcellus', 'Italiana', 'Cinzel', 'Abril Fatface',
+    'Poppins', 'Montserrat', 'Raleway', 'Quicksand', 'Comfortaa',
+    'Bebas Neue', 'Anton', 'Archivo Black',
+    'Dancing Script', 'Caveat', 'Great Vibes', 'Sacramento', 'Parisienne',
+    'Satisfy', 'Pacifico', 'Shadows Into Light', 'Patrick Hand', 'Kalam',
+    'Amatic SC', 'Special Elite', 'Courier Prime'];
 
   const fp = $('fontPreviews');
   SS.FONTS.forEach(f => {
@@ -199,15 +256,20 @@ SS.ui = {};
     fp.appendChild(d);
   });
 
+  function bgIsDark() {
+    const id = st.bg.id || '';
+    return /nacht|schwarzgold|smaragd|bordeaux|nachtgold|graphit|samt|goldstaub|bokeh|marmorgold/.test(id);
+  }
   $('addText').onclick = () => {
     const { H, slideW } = SS.canvasSize();
     const el = {
       id: SS.uid(), type: 'text', content: 'Dein Text',
       x: slideW / 2, y: H * 0.8, rot: 0,
-      font: 'Lora', size: 52, color: document.body.classList.contains('dark') ? '#f0e7e0' : '#5c4a42',
+      font: 'Lora', size: 52, color: bgIsDark() ? '#f2e9dc' : '#5c4a42',
       bold: false, italic: true, align: 'center',
       letterSpacing: 0, lineHeight: 1.4, opacity: 1,
       shadow: false, outline: false, outlineColor: '#ffffff',
+      effect: 'none', curve: 0,
       bgStyle: 'none', bgColor: '#ffffff', bgAlpha: 0.85,
     };
     st.elements.push(el); st.selectedId = el.id;
@@ -262,14 +324,35 @@ SS.ui = {};
     const { H, slideW } = SS.canvasSize();
     const col = def.cat === 'privacy' ? '#e8a9b4' : (def.cat === 'linien' || def.cat === 'funkeln' ? '#bf9b6c' : '#d68a96');
     const el = {
-      id: SS.uid(), type: 'sticker', kind: def.id,
+      id: SS.uid(), type: 'sticker', kind: def.id, cat: def.cat,
       x: slideW / 2, y: H / 2, rot: 0,
       s: def.cat === 'privacy' ? 320 : 160, color: col, opacity: 1,
+      anim: def.anim || 'none',
     };
     st.elements.push(el); st.selectedId = el.id;
     SS.pushHistory(); SS.ui.showProps(); SS.requestRender();
     if (isMobile()) $('sidepanel').classList.remove('open');
   }
+
+  // custom PNG sticker upload
+  $('stickerFile').addEventListener('change', async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    const rec = await SS.loadImageFilePNG(f);
+    const imgId = 'stk' + Date.now();
+    SS.images[imgId] = rec;
+    const { H, slideW } = SS.canvasSize();
+    st.elements.push({
+      id: SS.uid(), type: 'photo', imgId,
+      x: slideW / 2, y: H / 2, rot: 0, h: 300, flip: false, opacity: 1,
+      frame: Object.assign(SS.defaultFrame(), { style: 'none', shadow: 0 }),
+      filter: SS.defaultFilter(),
+    });
+    st.selectedId = st.elements[st.elements.length - 1].id;
+    SS.pushHistory(); SS.ui.showProps(); SS.requestRender();
+    e.target.value = '';
+    SS.toast('Eigener Sticker eingefügt ✓');
+  });
 
   function addBlur(bt) {
     const { H, slideW } = SS.canvasSize();
@@ -350,6 +433,113 @@ SS.ui = {};
   $('autoLayout').onclick = () => autoLayout(1);
   $('autoShuffle').onclick = () => autoLayout(++layoutSeed * 137);
 
+  /* ---- align tools ---- */
+  const { } = {};
+  $('alignH').onclick = () => {
+    const sel = SS.getSel(); if (!sel) return SS.toast('Erst ein Element antippen');
+    sel.x = SS.canvasSize().W / 2; SS.pushHistory(); SS.requestRender();
+  };
+  $('alignV').onclick = () => {
+    const sel = SS.getSel(); if (!sel) return SS.toast('Erst ein Element antippen');
+    sel.y = SS.canvasSize().H / 2; SS.pushHistory(); SS.requestRender();
+  };
+  $('alignSlide').onclick = () => {
+    const sel = SS.getSel(); if (!sel) return SS.toast('Erst ein Element antippen');
+    const { slideW } = SS.canvasSize();
+    const idx = SS.clamp(Math.round(sel.x / slideW - 0.5), 0, SS.state.slides - 1);
+    sel.x = idx * slideW + slideW / 2;
+    SS.pushHistory(); SS.requestRender();
+  };
+  $('distribute').onclick = () => {
+    const photos = st.elements.filter(e => e.type === 'photo');
+    if (photos.length < 2) return SS.toast('Mindestens 2 Fotos nötig');
+    const { W } = SS.canvasSize();
+    photos.sort((a, b) => a.x - b.x);
+    photos.forEach((p, i) => { p.x = W * (i + 0.5) / photos.length; });
+    SS.pushHistory(); SS.requestRender();
+  };
+  $('sameSize').onclick = () => {
+    const sel = SS.getSel();
+    const photos = st.elements.filter(e => e.type === 'photo');
+    if (!photos.length) return;
+    const h = (sel && sel.type === 'photo') ? sel.h : photos[0].h;
+    photos.forEach(p => { p.h = h; SS.invalidateEl(p); });
+    SS.pushHistory(); SS.requestRender();
+  };
+
+  /* ---- template looks ---- */
+  const TEMPLATES = [
+    { name: 'Gentle Story', bg: 'aq-blush-1', frame: 'polaroid', filter: 'creamy',
+      font: 'Lora', italic: true, tcolor: '#5c4a42', deco: ['thread', 'sparkle', 'heart-aqua'] },
+    { name: 'Minimal Editorial', bg: 'aq-ivory-2', frame: 'thin', filter: 'original',
+      font: 'Montserrat', italic: false, tcolor: '#3a332c', deco: ['hairline'] },
+    { name: 'Golden Hour', bg: 'aq-sunset-1', frame: 'polaroid-c', filter: 'golden',
+      font: 'Playfair Display', italic: true, tcolor: '#6b4a2a', deco: ['sun', 'sparkle3'] },
+    { name: 'Dark Luxury', bg: 'pr-goldstaub', frame: 'goldfoil', filter: 'matte',
+      font: 'Cinzel', italic: false, tcolor: '#e8cf96', deco: ['sparkle', 'starcirc'] },
+    { name: 'Scrapbook', bg: 'tx-papier-0', frame: 'tape', filter: 'softfilm',
+      font: 'Caveat', italic: false, tcolor: '#4a3b30', deco: ['washi1', 'clip', 'scribble'] },
+    { name: 'Soft Film', bg: 'aq-nebel-1', frame: 'polaroid', filter: 'fade',
+      font: 'Special Elite', italic: false, tcolor: '#4a4540', deco: ['dots'] },
+    { name: 'Baby Dreams', bg: 'aq-himmel-1', frame: 'rounded', filter: 'creamy',
+      font: 'Quicksand', italic: false, tcolor: '#4a5a6b', deco: ['mobile', 'cloud', 'moon'] },
+    { name: 'Boho', bg: 'pt-boho-8', frame: 'stitch', filter: 'warm',
+      font: 'Marcellus', italic: false, tcolor: '#6b503a', deco: ['branch', 'flourish'] },
+  ];
+  const tplGrid = $('tplGrid');
+  TEMPLATES.forEach(tpl => {
+    const sw = document.createElement('button');
+    sw.className = 'swatch';
+    const cv = document.createElement('canvas');
+    cv.width = 135; cv.height = 108;
+    const c = cv.getContext('2d');
+    const def = SS.BG_LIB.find(b => b.id === tpl.bg);
+    if (def) def.paint(c, 135, 108);
+    c.fillStyle = '#fff';
+    c.save(); c.translate(45, 46); c.rotate(-0.06);
+    c.fillRect(-24, -28, 48, 60);
+    c.fillStyle = '#c9bfae'; c.fillRect(-19, -23, 38, 42); c.restore();
+    c.fillStyle = tpl.tcolor;
+    c.font = `italic 13px "${tpl.font}"`;
+    c.textAlign = 'center';
+    c.fillText('Aa', 96, 55);
+    const lb = document.createElement('label'); lb.textContent = tpl.name;
+    sw.appendChild(cv); sw.appendChild(lb);
+    sw.onclick = () => applyTemplate(tpl);
+    tplGrid.appendChild(sw);
+  });
+  function applyTemplate(tpl) {
+    st.bg = { type: 'preset', id: tpl.bg, hue: 0 };
+    const preset = SS.FILTER_PRESETS.find(p => p.id === tpl.filter);
+    for (const el of st.elements) {
+      if (el.type === 'photo' && !(el.frame.style === 'none' && el.frame.shadow === 0)) {
+        el.frame.style = tpl.frame;
+        if (preset) el.filter = Object.assign(SS.defaultFilter(), preset.f, { preset: preset.id });
+        SS.photoCacheClear(el.id); SS.invalidateEl(el);
+      }
+      if (el.type === 'text') {
+        el.font = tpl.font; el.italic = tpl.italic; el.color = tpl.tcolor;
+      }
+    }
+    // add up to 3 deco stickers if none present yet
+    if (!st.elements.some(e => e.type === 'sticker' && e.cat !== 'privacy')) {
+      const { W, H } = SS.canvasSize();
+      tpl.deco.slice(0, 3).forEach((kind, i) => {
+        const def = SS.STICKERS.find(s => s.id === kind);
+        if (!def) return;
+        st.elements.push({
+          id: SS.uid(), type: 'sticker', kind, cat: def.cat,
+          x: W * (0.15 + 0.35 * i), y: H * (i % 2 ? 0.85 : 0.12),
+          rot: (i % 2 ? -8 : 8), s: def.ar ? 300 : 130,
+          color: tpl.tcolor, opacity: 0.85, anim: def.anim || 'none',
+        });
+      });
+    }
+    if (st.elements.some(e => e.type === 'photo')) autoLayout(3);
+    SS.bgCacheInvalidate(); SS.pushHistory(); SS.requestRender();
+    SS.toast(`✨ Vorlage „${tpl.name}" angewendet`);
+  }
+
   /* ================= project panel ================= */
   $('projSave').onclick = () => {
     const imgs = {};
@@ -379,6 +569,64 @@ SS.ui = {};
     $('photoShelf').innerHTML = '';
     SS.bgCacheInvalidate(); SS.pushHistory(); SS.ui.showProps(); SS.requestRender();
   };
+
+  /* ---- project gallery (multiple projects with thumbnails) ---- */
+  function projectPayload() {
+    const imgs = {};
+    for (const el of st.elements) if (el.type === 'photo' && SS.images[el.imgId]) imgs[el.imgId] = SS.images[el.imgId].dataURL;
+    if (st.bg.customURL) imgs.__bg = st.bg.customURL;
+    return { snap: SS.serialize(), imgs };
+  }
+  function makeThumb() {
+    const { W, H } = SS.canvasSize();
+    const tw = 320, th = Math.round(320 * H / W);
+    const cv = document.createElement('canvas');
+    cv.width = tw; cv.height = th;
+    const c = cv.getContext('2d');
+    c.scale(tw / W, tw / W);
+    SS.paintScene(c, W, H, { forExport: true });
+    return cv.toDataURL('image/jpeg', 0.7);
+  }
+  $('projSaveAs').onclick = async () => {
+    if (!st.elements.length) return SS.toast('Die Leinwand ist noch leer');
+    const id = 'proj:' + Date.now();
+    const data = projectPayload();
+    data.thumb = makeThumb();
+    data.name = 'Projekt ' + new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) +
+      ' ' + new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    SS.dbPut(id, data);
+    SS.toast('✓ Projekt gespeichert');
+    setTimeout(renderProjList, 300);
+  };
+  async function renderProjList() {
+    const list = $('projList');
+    list.innerHTML = '';
+    const keys = (await SS.dbKeys()).filter(k => String(k).startsWith('proj:')).sort().reverse();
+    for (const k of keys) {
+      const data = await SS.dbGet(k);
+      if (!data) continue;
+      const card = document.createElement('div');
+      card.className = 'proj-card';
+      const img = document.createElement('img');
+      img.src = data.thumb || '';
+      const nm = document.createElement('div');
+      nm.className = 'pc-name'; nm.textContent = data.name || 'Projekt';
+      const del = document.createElement('button');
+      del.className = 'pc-del'; del.textContent = '✕';
+      del.onclick = (e) => {
+        e.stopPropagation();
+        if (confirm('Dieses Projekt löschen?')) { SS.dbDel(k); renderProjList(); }
+      };
+      card.appendChild(img); card.appendChild(nm); card.appendChild(del);
+      card.onclick = async () => {
+        await SS.loadProjectData(data);
+        SS.toast('Projekt geladen ✓');
+      };
+      list.appendChild(card);
+    }
+    if (!keys.length) list.innerHTML = '<p class="hint">Noch keine gespeicherten Projekte.</p>';
+  }
+  setTimeout(renderProjList, 1500);
 
   SS.loadProjectData = async function (data) {
     for (const [id, url] of Object.entries(data.imgs || {})) {
@@ -478,6 +726,26 @@ SS.ui = {};
     inp.addEventListener('input', () => fn(inp.value));
     inp.addEventListener('change', () => SS.pushHistory());
     d.appendChild(inp);
+    // pipette: pick color from the canvas
+    const pick = document.createElement('button');
+    pick.className = 'mini-btn'; pick.title = 'Farbe aus dem Bild aufnehmen';
+    pick.innerHTML = '<svg style="width:14px;height:14px"><use href="#i-pipette"/></svg>';
+    pick.onclick = () => {
+      SS.pickMode = (hex) => { inp.value = hex; fn(hex); SS.pushHistory(); SS.ui.showProps(); };
+      SS.toast('💧 Tippe auf die Leinwand, um eine Farbe aufzunehmen');
+      if (isMobile()) props.classList.add('mini');
+    };
+    d.appendChild(pick);
+    return d;
+  }
+  function nudgeRow(sel) {
+    const d = document.createElement('div'); d.className = 'nudge-row';
+    [['←', -10, 0], ['↑', 0, -10], ['↓', 0, 10], ['→', 10, 0]].forEach(([t, dx, dy]) => {
+      const b = document.createElement('button');
+      b.textContent = t;
+      b.onclick = () => { sel.x += dx; sel.y += dy; SS.requestRender(); };
+      d.appendChild(b);
+    });
     return d;
   }
   function ctlSelect(label, val, options, fn) {
@@ -522,6 +790,8 @@ SS.ui = {};
     const titles = { photo: '📷 Foto', text: '🅣 Text', sticker: '💛 Sticker', emoji: '😊 Emoji', blur: '🔒 Blur' };
     $('propsTitle').textContent = titles[sel.type] || 'Element';
 
+    body.appendChild(nudgeRow(sel));
+
     if (sel.type === 'photo') {
       body.appendChild(h4('Rahmen'));
       body.appendChild(chips(SS.FRAMES, f => f.id === sel.frame.style, f => {
@@ -552,10 +822,31 @@ SS.ui = {};
       body.appendChild(ctlRange('Vignette', F.vignette, 0, 60, 1, v => { F.vignette = v; upd(); }));
       body.appendChild(ctlRange('Filmkorn', F.grain, 0, 40, 1, v => { F.grain = v; upd(); }));
 
+      body.appendChild(h4('Zuschnitt im Rahmen'));
+      if (!sel.crop) sel.crop = { zoom: 1, ox: 0, oy: 0 };
+      const updCrop = () => { SS.photoCacheClear(sel.id); SS.invalidateEl(sel); SS.requestRender(); };
+      body.appendChild(ctlRange('Zoom', sel.crop.zoom * 100, 100, 300, 2, v => { sel.crop.zoom = v / 100; updCrop(); }));
+      body.appendChild(ctlRange('Ausschnitt ↔', sel.crop.ox * 100, -100, 100, 2, v => { sel.crop.ox = v / 100; updCrop(); }));
+      body.appendChild(ctlRange('Ausschnitt ↕', sel.crop.oy * 100, -100, 100, 2, v => { sel.crop.oy = v / 100; updCrop(); }));
+
       body.appendChild(h4('Allgemein'));
       const flipB = document.createElement('button'); flipB.className = 'wide'; flipB.textContent = '↔️ Spiegeln';
       flipB.onclick = () => { sel.flip = !sel.flip; SS.photoCacheClear(sel.id); SS.invalidateEl(sel); SS.pushHistory(); SS.requestRender(); };
       body.appendChild(flipB);
+      const copyB = document.createElement('button'); copyB.className = 'wide';
+      copyB.textContent = '📋 Stil auf alle Fotos übertragen';
+      copyB.onclick = () => {
+        for (const el of st.elements) {
+          if (el.type === 'photo' && el.id !== sel.id) {
+            el.frame = JSON.parse(JSON.stringify(sel.frame));
+            el.filter = JSON.parse(JSON.stringify(sel.filter));
+            SS.photoCacheClear(el.id); SS.invalidateEl(el);
+          }
+        }
+        SS.pushHistory(); SS.requestRender();
+        SS.toast('✓ Rahmen & Filter auf alle Fotos übertragen');
+      };
+      body.appendChild(copyB);
       body.appendChild(ctlRange('Deckkraft', (sel.opacity ?? 1) * 100, 10, 100, 1, v => { sel.opacity = v / 100; SS.requestRender(); }));
       body.appendChild(ctlRange('Drehung', sel.rot, -45, 45, 0.5, v => { sel.rot = v; SS.requestRender(); }));
     }
@@ -585,8 +876,22 @@ SS.ui = {};
       body.appendChild(ctlSelect('Ausrichtung', sel.align, [['center', 'Zentriert'], ['left', 'Links'], ['right', 'Rechts']], v => { sel.align = v; SS.requestRender(); }));
       body.appendChild(ctlRange('Buchstabenabst.', sel.letterSpacing, -3, 30, 0.5, v => { sel.letterSpacing = v; SS.requestRender(); }));
       body.appendChild(ctlRange('Zeilenhöhe', sel.lineHeight * 100, 90, 220, 5, v => { sel.lineHeight = v / 100; SS.requestRender(); }));
-      body.appendChild(h4('Hintergrund'));
-      body.appendChild(ctlSelect('Stil', sel.bgStyle, [['none', 'Keiner'], ['pill', 'Pill'], ['card', 'Karte']], v => { sel.bgStyle = v; SS.requestRender(); }));
+
+      body.appendChild(h4('Effekt'));
+      body.appendChild(chips([
+        { id: 'none', name: 'Kein' }, { id: 'gold', name: '✨ Gold' },
+        { id: 'neon', name: '💡 Neon' }, { id: '3d', name: '3D' },
+        { id: 'kontur', name: 'Kontur' },
+      ], e => (sel.effect || 'none') === e.id, e => { sel.effect = e.id; SS.requestRender(); }));
+      body.appendChild(ctlRange('Bogen', sel.curve || 0, -100, 100, 2, v => { sel.curve = v; SS.requestRender(); }));
+
+      body.appendChild(h4('Text-Hintergrund'));
+      body.appendChild(ctlSelect('Stil', sel.bgStyle, [
+        ['none', 'Keiner'], ['label', 'Insta-Label'], ['pill', 'Pill'], ['card', 'Karte'],
+        ['glass', 'Milchglas'], ['marker', 'Highlighter'], ['sticky', 'Notizzettel'],
+        ['ribbon', 'Banner'], ['torn', 'Gerissen'], ['stamp', 'Stempel'],
+        ['kreis', 'Marker-Kreis'], ['underline', 'Unterstrichen'],
+      ], v => { sel.bgStyle = v; SS.requestRender(); }));
       body.appendChild(ctlColor('BG-Farbe', sel.bgColor, v => { sel.bgColor = v; SS.requestRender(); }));
       body.appendChild(ctlRange('BG-Deckkraft', sel.bgAlpha * 100, 10, 100, 1, v => { sel.bgAlpha = v / 100; SS.requestRender(); }));
       body.appendChild(ctlRange('Drehung', sel.rot, -45, 45, 0.5, v => { sel.rot = v; SS.requestRender(); }));
@@ -597,6 +902,15 @@ SS.ui = {};
       body.appendChild(ctlRange('Größe', sel.s, 20, 1500, 5, v => { sel.s = v; SS.requestRender(); }));
       body.appendChild(ctlRange('Deckkraft', (sel.opacity ?? 1) * 100, 5, 100, 1, v => { sel.opacity = v / 100; SS.requestRender(); }));
       body.appendChild(ctlRange('Drehung', sel.rot, -180, 180, 1, v => { sel.rot = v; SS.requestRender(); }));
+      body.appendChild(h4('✨ Animation (Video)'));
+      body.appendChild(chips([
+        { id: 'none', name: 'Keine' }, { id: 'pulse', name: '💗 Pulsieren' },
+        { id: 'twinkle', name: '✦ Funkeln' }, { id: 'float', name: '☁ Schweben' },
+        { id: 'spin', name: '↻ Drehen' }, { id: 'wobble', name: '〰 Wackeln' },
+      ], a => (sel.anim || 'none') === a.id, a => { sel.anim = a.id; SS.requestRender(); }));
+      const p = document.createElement('p'); p.className = 'hint';
+      p.textContent = 'Animationen sind live auf der Leinwand sichtbar und werden im Video-Export mitgerendert. Bilder-Export bleibt gestochen scharf & statisch.';
+      body.appendChild(p);
     }
     if (sel.type === 'emoji') {
       body.appendChild(ctlRange('Größe', sel.s, 30, 1200, 5, v => { sel.s = v; SS.requestRender(); }));

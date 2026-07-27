@@ -60,6 +60,30 @@ SS.loadImageFile = function (file, maxDim = 2600) {
   });
 };
 
+SS.loadImageFilePNG = function (file, maxDim = 1400) {
+  // like loadImageFile but keeps transparency (for custom stickers/logos)
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const sc = Math.min(1, maxDim / Math.max(img.width, img.height));
+        const cv = document.createElement('canvas');
+        cv.width = Math.round(img.width * sc); cv.height = Math.round(img.height * sc);
+        cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+        const dataURL = cv.toDataURL('image/png');
+        const out = new Image();
+        out.onload = () => resolve({ img: out, dataURL, w: cv.width, h: cv.height });
+        out.src = dataURL;
+      };
+      img.onerror = reject;
+      img.src = fr.result;
+    };
+    fr.onerror = reject;
+    fr.readAsDataURL(file);
+  });
+};
+
 SS.loadImageURL = function (dataURL) {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -154,6 +178,21 @@ SS.dbGet = function (key) {
       rq.onerror = () => resolve(null);
     } catch (e) { resolve(null); }
   });
+};
+
+SS.dbKeys = function () {
+  return new Promise((resolve) => {
+    if (!SS.db) return resolve([]);
+    try {
+      const rq = SS.db.transaction('kv', 'readonly').objectStore('kv').getAllKeys();
+      rq.onsuccess = () => resolve(rq.result || []);
+      rq.onerror = () => resolve([]);
+    } catch (e) { resolve([]); }
+  });
+};
+SS.dbDel = function (key) {
+  if (!SS.db) return;
+  try { SS.db.transaction('kv', 'readwrite').objectStore('kv').delete(key); } catch (e) {}
 };
 
 let _asT = null;
