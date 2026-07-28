@@ -712,6 +712,57 @@ SS.drawTextEl = function (c, el) {
 
 /* ---------- sticker / emoji drawing (animation via anim.js) ---------- */
 SS.animT = 0;   // Sekunden; wird von der Live-Schleife bzw. vom Video-Export gesetzt
+/* Sticker werden nicht mehr bei jedem Bild neu konstruiert.
+   Jede Kombination aus Motiv, Größe, Farbe und Zeichenschärfe entsteht
+   einmal in einem eigenen kleinen Canvas und wird danach nur kopiert.
+   Ein Mandala hat hunderte Pfade – das war der teuerste Posten im Video. */
+const _stickerIndex = new Map();
+SS.stickerDef = function (id) {
+  if (_stickerIndex.size !== SS.STICKERS.length) {
+    _stickerIndex.clear();
+    for (const d of SS.STICKERS) _stickerIndex.set(d.id, d);
+  }
+  return _stickerIndex.get(id);
+};
+
+const _stkCache = new Map();
+const STK_MAX = 90;                 // höchstens so viele Einträge
+const STK_MAX_PX = 14e6;            // und höchstens ~56 MB Bildspeicher insgesamt
+let _stkPx = 0;
+SS.stickerCacheClear = () => {
+  _stkCache.forEach(v => SS.freeCanvas(v.canvas));
+  _stkCache.clear(); _stkPx = 0;
+};
+function stkAufraeumen() {
+  while ((_stkCache.size > STK_MAX || _stkPx > STK_MAX_PX) && _stkCache.size > 1) {
+    const ältester = _stkCache.keys().next().value;
+    const alt = _stkCache.get(ältester);
+    _stkCache.delete(ältester);
+    if (alt) { _stkPx -= alt.canvas.width * alt.canvas.height; SS.freeCanvas(alt.canvas); }
+  }
+}
+
+const STK_PAD = 2.2;                 // reichlich Platz, damit Schatten nicht abgeschnitten werden
+function stickerBild(def, s, col, schaerfe) {
+  const key = def.id + '|' + Math.round(s) + '|' + col + '|' + schaerfe.toFixed(3);
+  const hit = _stkCache.get(key);
+  if (hit) { _stkCache.delete(key); _stkCache.set(key, hit); return hit; }   // LRU auffrischen
+  const px = Math.max(8, Math.min(1600, Math.round(s * STK_PAD * schaerfe)));
+  const cv = SS.makeCanvas(px, px);
+  const cc = cv.getContext('2d');
+  /* Wichtig: im Zwischenbild wird mit genau demselben Maßstab gezeichnet wie
+     auf dem Bildschirm. Nur so fallen Schlagschatten und Glanzlichter identisch
+     aus – shadowBlur rechnet Canvas in Gerätepixeln, nicht in Weltmaßen. */
+  cc.translate(px / 2, px / 2);
+  cc.scale(schaerfe, schaerfe);
+  try { def.draw(cc, s, col); } catch (e) { SS.freeCanvas(cv); return null; }
+  const rec = { canvas: cv, welt: px / schaerfe };
+  _stkCache.set(key, rec);
+  _stkPx += px * px;
+  stkAufraeumen();
+  return rec;
+}
+
 SS.drawStickerEl = function (c, el) {
   c.save();
   c.translate(el.x, el.y);
@@ -724,10 +775,24 @@ SS.drawStickerEl = function (c, el) {
       c.font = `${el.s * 0.9}px system-ui, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji"`;
       c.textAlign = 'center'; c.textBaseline = 'middle';
       c.fillText(el.char, 0, el.s * 0.05);
-    } else {
-      const def = SS.STICKERS.find(s => s.id === el.kind);
-      if (def) def.draw(c, el.s, el.color);
+      return;
     }
+    const def = SS.stickerDef(el.kind);
+    if (!def) return;
+    // Beim Export und bei sehr großen Stickern direkt zeichnen – volle Schärfe
+    const m = c.getTransform ? c.getTransform() : null;
+    const massstab = m ? Math.hypot(m.a, m.b) : 1;
+    if (SS._exporting || !isFinite(massstab) || massstab <= 0 || el.s * massstab > 1100) {
+      def.draw(c, el.s, el.color);
+      return;
+    }
+    /* Maßstab in feinen Stufen (je 9 %), damit beim Zoomen nicht ständig neu
+       gezeichnet wird, die Darstellung aber praktisch deckungsgleich bleibt. */
+    const stufe = Math.min(4, Math.max(0.08,
+      Math.pow(2, Math.ceil(Math.log2(massstab) * 8) / 8)));
+    const rec = stickerBild(def, el.s, el.color, stufe);
+    if (!rec) { def.draw(c, el.s, el.color); return; }
+    c.drawImage(rec.canvas, -rec.welt / 2, -rec.welt / 2, rec.welt, rec.welt);
   };
   SS.paintWithGlow(c, glow, paint);
   c.restore();
@@ -820,6 +885,35 @@ SS.blurShapePath = function (c, shape, w, h) {
 };
 
 /* ---------- shadow for photo cards ---------- */
+/* Verkleinerte Zwischenstufen der Fotokarten ("Mipmaps").
+   In der Gesamtübersicht wird eine 540x720-Karte auf 35x47 Punkte gequetscht –
+   dabei muss jedes Mal das ganze Original abgetastet werden. Einmal halbieren,
+   nochmal halbieren, und ab dann ist es fast umsonst. Sieht dazu ruhiger aus. */
+const _mipCache = new WeakMap();
+SS.mipCacheClear = () => { /* WeakMap räumt sich selbst auf */ };
+function kleineKarte(card, massstab) {
+  if (SS._exporting || !isFinite(massstab) || massstab >= 0.6) return card;
+  const stufe = Math.min(4, Math.max(1, Math.ceil(Math.log2(1 / massstab))));
+  let m = _mipCache.get(card);
+  if (!m) { m = {}; _mipCache.set(card, m); }
+  if (m[stufe]) return m[stufe];
+  let quelle = m[stufe - 1] || card;
+  let von = stufe - 1;
+  for (let i = von + 1; i <= stufe; i++) {
+    if (m[i]) { quelle = m[i]; continue; }
+    const w = Math.max(1, Math.round(quelle.width / 2));
+    const h = Math.max(1, Math.round(quelle.height / 2));
+    const cv = SS.makeCanvas(w, h);
+    const cc = cv.getContext('2d');
+    cc.imageSmoothingEnabled = true;
+    cc.imageSmoothingQuality = 'high';
+    cc.drawImage(quelle, 0, 0, w, h);
+    m[i] = cv;
+    quelle = cv;
+  }
+  return m[stufe] || card;
+}
+
 function drawCardWithShadow(c, el, card) {
   c.save();
   c.translate(el.x, el.y);
@@ -827,11 +921,14 @@ function drawCardWithShadow(c, el, card) {
   c.globalAlpha = el.opacity ?? 1;
   const glow = SS.applyAnim ? SS.applyAnim(c, el, card.height) : null;
   if ((el.scaleX || 1) !== 1 || (el.scaleY || 1) !== 1) c.scale(el.scaleX || 1, el.scaleY || 1);
+  const _m = c.getTransform ? c.getTransform() : null;
+  const _mass = _m ? Math.hypot(_m.a, _m.b) : 1;
+  const bild = kleineKarte(card, _mass);
   if (glow) {
     c.save();
     c.shadowColor = el.animGlowColor || '#ffe6b8';
     c.shadowBlur = glow.blur;
-    c.drawImage(card, -card.width / 2, -card.height / 2);
+    c.drawImage(bild, -card.width / 2, -card.height / 2, card.width, card.height);
     c.restore();
   }
   if (el.frame.shadow > 0 && el.frame.style !== 'none') {
@@ -842,12 +939,27 @@ function drawCardWithShadow(c, el, card) {
     c.shadowColor = `rgba(45,28,20,${el.frame.shadow / 150})`;
     c.shadowBlur = 20; c.shadowOffsetY = 10;
   }
-  c.drawImage(card, -card.width / 2, -card.height / 2);
+  c.drawImage(bild, -card.width / 2, -card.height / 2, card.width, card.height);
   c.restore();
+}
+
+/* Liegt das Element komplett außerhalb des Sichtfensters?
+   Großzügig gerechnet (Kreis um den Mittelpunkt), damit Schatten,
+   Leuchten und Animationsversatz nicht abgeschnitten werden. */
+function ausserhalb(el, v) {
+  if (el.type === 'blur') return false;          // Unschärfe tastet die Gesamtfläche ab
+  let w, h;
+  try { const s = SS.elSize(el); w = s.w; h = s.h; } catch (e) { return false; }
+  if (!isFinite(w) || !isFinite(h)) return false;
+  const r = Math.hypot(w, h) / 2 + Math.max(60, Math.max(w, h) * 0.35);
+  return el.x + r < v.x0 || el.x - r > v.x1 || el.y + r < v.y0 || el.y - r > v.y1;
 }
 
 /* ---------- compose scene into ctx at full canvas coordinates ---------- */
 SS.paintScene = function (c, W, H, opts = {}) {
+  const warExport = SS._exporting;
+  SS._exporting = !!opts.forExport;   // beim Export nie aus dem Sticker-Cache zeichnen
+  try {
   if (!opts.noBg) {
     if (SS.clip && SS.clip.ready) SS.drawClipFrame(c, W, H);
     else SS.paintBackground(c, W, H, opts.forExport);
@@ -865,9 +977,11 @@ SS.paintScene = function (c, W, H, opts = {}) {
     base.matrix = c.getTransform ? c.getTransform() : null;
     return base;
   };
+  const view = opts.view;
   for (const el of SS.state.elements) {
     if (el.hidden) continue;
     if (skip && skip.has(el.id)) continue;
+    if (view && ausserhalb(el, view)) continue;
     /* Mischmodus gilt genau für dieses Element – die Ebenenfolge bleibt unberührt */
     c.save();
     if (el.blend && el.blend !== 'source-over') c.globalCompositeOperation = el.blend;
@@ -903,6 +1017,8 @@ SS.paintScene = function (c, W, H, opts = {}) {
       SS.drawTextEl(c, el);
     } else if (el.type === 'sticker' || el.type === 'emoji') {
       SS.drawStickerEl(c, el);
+    } else if (el.type === 'pathtext' && SS.drawPfadText) {
+      SS.drawPfadText(c, el);
     } else if (el.type === 'video' && SS.drawVideoEl) {
       SS.drawVideoEl(c, el);
     }
@@ -913,6 +1029,7 @@ SS.paintScene = function (c, W, H, opts = {}) {
   for (const el of SS.state.elements) {
     if (el.hidden || el.type !== 'photo' || !el.overlay) continue;
     if (skip && skip.has(el.id)) continue;
+    if (view && ausserhalb(el, view)) continue;
     const card = SS.photoCard(el);
     if (card) drawCardWithShadow(c, el, card);
   }
@@ -938,6 +1055,7 @@ SS.paintScene = function (c, W, H, opts = {}) {
     }
   }
   if (base) { SS.freeCanvas(base.canvas); base = null; }
+  } finally { SS._exporting = warExport; }
 };
 
 /* Einzelnes Element zeichnen (für den Video-Renderer). */
@@ -953,15 +1071,58 @@ SS.drawElement = function (c, el) {
 };
 
 /* ---------- screen render ---------- */
+/* ============================================================
+   Bewegungs-Modus: solange gezogen, gezoomt oder ein Clip läuft,
+   wird gröber gezeichnet. Sobald Ruhe einkehrt, einmal scharf nach.
+   Das halbiert auf dem Handy die Pixelmenge, ohne dass man es sieht.
+   ============================================================ */
+SS._motionUntil = 0;
+SS._scharfTimer = null;
+SS.motionHint = function (ms) {
+  SS._motionUntil = performance.now() + (ms || 260);
+  if (SS._scharfTimer) clearTimeout(SS._scharfTimer);
+  SS._scharfTimer = setTimeout(() => {
+    SS._scharfTimer = null;
+    if (performance.now() >= SS._motionUntil) SS.requestRender();
+  }, (ms || 260) + 90);
+};
+SS.inMotion = () => performance.now() < SS._motionUntil;
+
+/* Notbremse: bleiben die Bilder zu lange hängen, wird dauerhaft gröber
+   gezeichnet – und wenn das nicht reicht, meldet sich der Leistungsmodus. */
+SS._qualitaet = 1;              // 1 = voll, 0.75 / 0.5 = reduziert
+SS._langsam = 0;
+SS._renderZeit = 0;
+
+function zielDpr() {
+  const max = SS.inMotion() ? 1.5 : 2;
+  return Math.max(1, Math.min(window.devicePixelRatio || 1, max) * SS._qualitaet);
+}
+
+/* Sichtfenster in Leinwand-Koordinaten – alles außerhalb wird übersprungen. */
+function sichtFenster(sw, sh) {
+  const st = SS.state;
+  const z = st.zoom || 1;
+  const rand = 80 / z;                       // kleiner Puffer gegen Aufblitzen am Rand
+  return {
+    x0: (-st.panX) / z - rand,
+    y0: (-st.panY) / z - rand,
+    x1: (-st.panX + sw) / z + rand,
+    y1: (-st.panY + sh) / z + rand,
+  };
+}
+
 SS.render = function () {
+  const t0 = performance.now();
   const es = document.getElementById('emptyState');
   if (es) es.style.display = SS.state.elements.length ? 'none' : 'flex';
   const canvas = SS.el('canvas');
   const stage = SS.el('stage');
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const dpr = zielDpr();
   const sw = stage.clientWidth, sh = stage.clientHeight;
-  if (canvas.width !== sw * dpr || canvas.height !== sh * dpr) {
-    canvas.width = sw * dpr; canvas.height = sh * dpr;
+  const bw = Math.round(sw * dpr), bh = Math.round(sh * dpr);
+  if (canvas.width !== bw || canvas.height !== bh) {
+    canvas.width = bw; canvas.height = bh;
     canvas.style.width = sw + 'px'; canvas.style.height = sh + 'px';
   }
   const c = canvas.getContext('2d');
@@ -983,7 +1144,7 @@ SS.render = function () {
 
   c.save();
   c.beginPath(); c.rect(0, 0, W, H); c.clip();
-  SS.paintScene(c, W, H);
+  SS.paintScene(c, W, H, { view: sichtFenster(sw, sh) });
   c.restore();
 
   // slide boundary guides
@@ -1131,8 +1292,31 @@ SS.render = function () {
 
   // Abstandsanzeige (Smart Guides)
   if (SS._distMarks) SS.drawDistMarks(c, st.zoom);
+  // Pfadtext: Kurve und Stützpunkte, solange bearbeitet wird
+  if (SS.drawPfadGriffe) SS.drawPfadGriffe(c, st.zoom);
 
   c.restore();
+
+  /* ---- Notbremse: gleitender Mittelwert der Zeichendauer ----
+     Wird es dauerhaft eng, zeichnen wir gröber. Reicht das nicht,
+     schlägt der Leistungsmodus zu – aber sichtbar, nicht heimlich. */
+  const dt = performance.now() - t0;
+  SS._renderZeit = SS._renderZeit ? SS._renderZeit * 0.85 + dt * 0.15 : dt;
+  if (SS._renderZeit > 22) {
+    SS._langsam++;
+    if (SS._langsam > 45 && SS._qualitaet > 0.5) {
+      SS._qualitaet = SS._qualitaet > 0.75 ? 0.75 : 0.5;
+      SS._langsam = 0;
+    } else if (SS._langsam > 90 && !SS.state.perfMode && SS.ui && SS.ui.setPerfMode) {
+      SS._langsam = 0;
+      SS.ui.setPerfMode(true, true);
+      SS.toast && SS.toast('Es wurde eng – Leistungsmodus ist an', 3600, 'info',
+        { label: 'Aus', fn: () => { SS.ui.setPerfMode(false); SS._qualitaet = 1; } });
+    }
+  } else if (SS._renderZeit < 11) {
+    SS._langsam = 0;
+    if (SS._qualitaet < 1) { SS._qualitaet = Math.min(1, SS._qualitaet + 0.25); }
+  }
 };
 
 /* ================================================================

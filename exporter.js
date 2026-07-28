@@ -329,8 +329,59 @@
     b.onclick = () => { previewCrop = b.dataset.crop; applyCrop(); };
   });
 
-  $('previewClose').onclick = () => {
+  /* Schließen: Knopf, Hintergrund-Tipp, Runterwischen und Escape.
+     Vier Wege, damit man nie festhängt – auf dem iPhone lag der Knopf
+     bisher hinter Uhrzeit und Akkuanzeige. */
+  function previewSchliessen() {
+    const dlg = $('previewDlg');
+    if (!dlg || dlg.classList.contains('hidden')) return;
     [...$('previewTrack').children].forEach(img => URL.revokeObjectURL(img.src));
-    $('previewDlg').classList.add('hidden');
-  };
+    const card = dlg.querySelector('.preview-card');
+    if (card) card.style.transform = '';
+    dlg.style.background = '';
+    dlg.classList.add('hidden');
+  }
+  SS.previewClose = previewSchliessen;
+
+  $('previewClose').onclick = previewSchliessen;
+
+  // Tipp auf den dunklen Bereich neben der Karte
+  $('previewDlg').addEventListener('pointerdown', (e) => {
+    if (e.target === $('previewDlg')) previewSchliessen();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !$('previewDlg').classList.contains('hidden')) previewSchliessen();
+  });
+
+  // Runterwischen
+  (function () {
+    const dlg = $('previewDlg');
+    const card = dlg.querySelector('.preview-card');
+    if (!card) return;
+    let y0 = null, dy = 0, aktiv = false;
+    card.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'mouse') return;
+      // nicht wischen, wenn man gerade im Slide-Karussell blättert
+      if (e.target.closest('#previewTrack')) return;
+      y0 = e.clientY; dy = 0; aktiv = true;
+      card.style.transition = 'none';
+    });
+    card.addEventListener('pointermove', (e) => {
+      if (!aktiv || y0 === null) return;
+      dy = e.clientY - y0;
+      if (dy < 0) dy = 0;
+      card.style.transform = 'translateY(' + dy + 'px)';
+      dlg.style.background = 'rgba(20,17,15,' + Math.max(0.1, 0.6 - dy / 500) + ')';
+    });
+    const ende = () => {
+      if (!aktiv) return;
+      aktiv = false; y0 = null;
+      card.style.transition = 'transform .25s var(--ease)';
+      if (dy > 90) previewSchliessen();
+      else { card.style.transform = ''; dlg.style.background = ''; }
+    };
+    card.addEventListener('pointerup', ende);
+    card.addEventListener('pointercancel', ende);
+  })();
 })();

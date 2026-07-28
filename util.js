@@ -29,6 +29,31 @@ SS.canvasSize = function () {
   return { W: w * n, H: h, slideW: w, slideH: h, n };
 };
 
+/* Welche Slide ist gerade zu sehen? Aus Scroll-Position und Zoom gerechnet.
+   Alles Neue soll dort erscheinen, wo der Nutzer gerade hinschaut – nicht auf Slide 1. */
+SS.sichtbareSlide = function () {
+  const { W, slideW, n } = SS.canvasSize();
+  if (n <= 1) return 0;
+  const st = SS.state;
+  const stage = document.getElementById('stage');
+  const breite = stage && stage.clientWidth ? stage.clientWidth : W;
+  const zoom = st.zoom || 1;
+  const mitte = SS.clamp((-st.panX + breite / 2) / zoom, 0, W - 1);
+  return SS.clamp(Math.floor(mitte / slideW), 0, n - 1);
+};
+
+/* Mittelpunkt der sichtbaren Slide – Einfüge-Position für Sticker, Text, Emoji, Privacy. */
+SS.aktuelleSlideMitte = function () {
+  const { W, H, slideW } = SS.canvasSize();
+  const i = SS.sichtbareSlide();
+  return {
+    x: SS.clamp(i * slideW + slideW / 2, slideW / 2, Math.max(slideW / 2, W - slideW / 2)),
+    y: H / 2,
+    slide: i,
+    slideX: i * slideW,
+  };
+};
+
 SS.uid = () => 'e' + (SS.state._idSeq++);
 SS.gid = () => 'g' + (SS.state._idSeq++);
 
@@ -114,6 +139,7 @@ SS.elName = function (el) {
     const d = SS.STICKERS && SS.STICKERS.find(s => s.id === el.kind);
     return d ? d.name : 'Sticker';
   }
+  if (el.type === 'pathtext') return 'Pfad: ' + String(el.content || '').slice(0, 18);
   if (el.type === 'emoji') return el.char || 'Emoji';
   if (el.type === 'blur') return el.pixelate ? 'Pixel-Bereich' : 'Unschärfe';
   return 'Element';

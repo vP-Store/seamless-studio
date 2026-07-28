@@ -1,4 +1,4 @@
-# ✦ Seamless Studio 6.3
+# ✦ Seamless Studio 6.0
 
 Dein persönlicher Editor für Instagram **Seamless-Panorama-Carousels** und **Reels** — als PWA, komplett offline-fähig. Alle Fotos, Videos und Aufnahmen bleiben zu 100 % auf deinem Gerät.
 
@@ -85,6 +85,54 @@ Slide-Zähler „1 / 5", Fortschrittsbalken und Wisch-Pfeil in frei wählbarer F
 - Respektiert **`prefers-reduced-motion`** deines Systems
 - Beispiel-Carousel zum Ausprobieren und eine kurze Einführung beim ersten Start
 - Am Handy: Safe-Area oben und unten, Trefferflächen ab 40 px, klebende Suchzeile im Sheet
+
+
+
+
+## Neu in 6.0
+
+- **Pfadtext** – ein neuer Elementtyp: Schrift, die einem Verlauf folgt und dabei **durch das ganze
+  Panorama** läuft, quer über alle Schnittkanten. Sieben Formen (Welle, S-Kurve, Bogen, Diagonale,
+  Zickzack, Kreis, Gerade) plus **eigener Pfad**, dessen Stützpunkte du direkt auf der Leinwand
+  ziehst. Die Buchstaben werden über die echte Bogenlänge verteilt, also bleiben die Abstände
+  gleich, egal wie stark der Pfad gerade gekrümmt ist. „Über die ganze Länge verteilen" dehnt den
+  Satz so, dass er den Pfad wirklich ausfüllt. Alle 32 Buchstaben-Animationen funktionieren darauf.
+- **31 Anordnungen** statt 8, in drei Gruppen: **▦ Fotoraster** (13), **⇔ Panorama** (10) mit
+  Kompositionen über die volle Breite, und **▤ Fertige Seiten** (8), die Fotos *und* Textfelder in
+  einem Rutsch setzen. Jede mit gerenderter Vorschaukachel – gezeichnet mit derselben Funktion, die
+  danach die Fotos platziert, die Kachel kann also gar nichts anderes zeigen.
+
+## Neu in 5.2
+
+- **Video: du wählst, wohin.** Beim Einfügen fragt die App einmal nach — auf die Leinwand (wie ein
+  Foto) oder als Hintergrund über die ganze Fläche. Der Hintergrund-Weg sagt vorher, dass daraus
+  eine einzige Slide wird. Umschalten geht jederzeit in den Eigenschaften des Clips.
+- **276 Sticker** in 20 Kategorien: neu sind **Feste** (24), **Reise** (16), **Café** (16),
+  **Angebot** (16), **Botanik** (20), **Rahmen & Bänder** (16) und **Handgemaltes** (13).
+  Dazu ein Reiter **Zuletzt**, der die zuletzt benutzten Motive sammelt.
+- **157 Animationen** in 11 Gruppen. Neu: **⇥ Ein- & Ausgang** (16) — Elemente kommen herein und
+  gehen wieder, die Sorte, die ein Reel trägt. **♪ Im Takt** (10) rastet auf das Taktraster der
+  mitgelieferten Klangbetten. **◎ Kamera-nah** (10) mit Parallaxe, Ken Burns und Handkamera.
+  **☺ Charakter** (12) für Sticker, die sich benehmen wie kleine Wesen. Und **12 weitere
+  Buchstaben-Animationen** (jetzt 32).
+- **Animations-Kacheln zeigen die Bewegung** als Schleife, statt nur den Namen zu nennen.
+
+## Neu in 5.1 – die Punkte vom iPhone-Test
+
+- **Sticker, Text, Emojis und Privacy-Bereiche erscheinen auf der Slide, die du gerade siehst** –
+  nicht mehr immer auf Slide 1. Die App rechnet aus Scroll-Position und Zoom die sichtbare Slide aus.
+- **Hand-Knopf** in der Kopfzeile: solange er an ist, verschiebt jeder Zug nur die Leinwand –
+  Fotos und Sticker bleiben liegen. Am Rechner geht auch die **Leertaste**.
+- **Leistungsmodus als eigener Knopf** oben rechts, statt versteckt im Projekt-Panel.
+  Er leuchtet auch, wenn die App ihn selbst eingeschaltet hat.
+- **Vorschau lässt sich immer schließen**: großer runder Knopf, der die Safe-Area des iPhones
+  berücksichtigt und damit nie hinter Uhrzeit und Akkuanzeige liegt. Dazu Schließen per Tipp auf
+  den Hintergrund, per Runterwischen und mit Escape.
+- **Video ruckelt nicht mehr.** Vier Ursachen behoben: die Leinwand wurde bei jedem Videobild
+  komplett neu gezeichnet, Sticker wurden jedes Mal neu konstruiert, Fotos wurden in der Übersicht
+  aus voller Auflösung heruntergerechnet, und `currentTime` löste laufend echte Seeks aus.
+  Gemessen an einer Szene mit 5 Fotos, 8 Stickern und einem Clip: **27 → 60 Bilder je Sekunde**,
+  Zeichendauer in der Gesamtübersicht **10,5 ms → 0,3 ms**.
 
 ## 🚀 Auf GitHub veröffentlichen (einmalig, ~5 Minuten)
 

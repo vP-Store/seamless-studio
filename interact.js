@@ -11,6 +11,7 @@
   const pointers = new Map();
 
   SS.lassoMode = false;   // per Knopf am Handy einschaltbar
+  SS.panMode = false;     // Hand-Modus: jeder Zug verschiebt die Leinwand, nichts verrutscht
   SS.addMode = false;     // „Mehrere auswählen" am Handy
   SS.arLock = true;       // Seitenverhältnis-Sperre beim Verzerren
 
@@ -197,6 +198,26 @@
       return;
     }
 
+    // Pfadtext: Stützpunkt greifen, solange der Pfad bearbeitet wird
+    if (SS.pfadEdit && SS.pfadGriffTreffer) {
+      const [pwx, pwy] = screenToWorld(ev.offsetX, ev.offsetY);
+      const tr = SS.pfadGriffTreffer(pwx, pwy, st.zoom);
+      if (tr) {
+        mode = 'pfadpunkt';
+        start = { el: tr.el, index: tr.index,
+          ox: tr.el.punkte[tr.index].x - (pwx - tr.el.x),
+          oy: tr.el.punkte[tr.index].y - (pwy - tr.el.y) };
+        return;
+      }
+    }
+
+    // Hand-Modus (Knopf oder gehaltene Leertaste): immer schwenken, nie ein Element greifen
+    if (SS.panMode || SS._spacePan) {
+      mode = 'pan';
+      start = { sx: ev.offsetX, sy: ev.offsetY, panX: st.panX, panY: st.panY };
+      return;
+    }
+
     const [wx, wy] = screenToWorld(ev.offsetX, ev.offsetY);
 
     const h = hitHandle(wx, wy);
@@ -241,6 +262,7 @@
     if (!pointers.has(ev.pointerId)) return;
     pointers.set(ev.pointerId, { x: ev.offsetX, y: ev.offsetY });
     if (!mode) return;
+    SS.motionHint && SS.motionHint(220);   // während der Bewegung gröber zeichnen
 
     if (mode === 'pinch' && pointers.size === 2) {
       const pts = [...pointers.values()];
@@ -305,6 +327,12 @@
       st.panX = start.panX + (ev.offsetX - start.sx);
       st.panY = start.panY + (ev.offsetY - start.sy);
       SS.requestRender();
+    } else if (mode === 'pfadpunkt') {
+      const [pwx, pwy] = screenToWorld(ev.offsetX, ev.offsetY);
+      const pt = start.el.punkte[start.index];
+      pt.x = start.ox + (pwx - start.el.x);
+      pt.y = start.oy + (pwy - start.el.y);
+      SS.requestRender();
     }
   });
 
@@ -320,7 +348,8 @@
     }
     SS._lasso = null;
     if (mode && mode !== 'pan' && mode !== 'lasso') {
-      SS.pushHistory(mode === 'move' ? 'Verschoben' : mode === 'rotate' ? 'Gedreht' : 'Größe geändert');
+      SS.pushHistory(mode === 'move' ? 'Verschoben' : mode === 'rotate' ? 'Gedreht'
+        : mode === 'pfadpunkt' ? 'Pfad geändert' : 'Größe geändert');
     }
     if (pointers.size === 0) mode = null;
     SS._snapLines = null;
@@ -343,6 +372,7 @@
   canvas.addEventListener('wheel', (ev) => {
     ev.preventDefault();
     const f = SS.clamp(st.zoom * (ev.deltaY < 0 ? 1.1 : 0.9), 0.05, 4);
+    SS.motionHint && SS.motionHint(220);
     st.panX = ev.offsetX - (ev.offsetX - st.panX) * f / st.zoom;
     st.panY = ev.offsetY - (ev.offsetY - st.panY) * f / st.zoom;
     st.zoom = f;

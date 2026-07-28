@@ -131,12 +131,13 @@ SS.ui = {};
     let seq = order.map(i => loaded[i]);
     if (mode === 'auto') seq = autoOrder(seq);
 
-    const { H, slideW } = SS.canvasSize();
+    const { H } = SS.canvasSize();
+    const mitte = SS.aktuelleSlideMitte();
     const added = [];
     seq.forEach((it, i) => {
       const el = {
         id: SS.uid(), type: 'photo', imgId: it.imgId,
-        x: slideW / 2 + (st.elements.length % 3) * 60 + i * 40,
+        x: mitte.x + (st.elements.length % 3) * 60 + i * 40,
         y: H / 2 + (i % 2 ? 60 : -40),
         rot: (Math.random() * 6 - 3),
         h: Math.min(H * 0.55, 760),
@@ -203,10 +204,11 @@ SS.ui = {};
       window.addEventListener('pointerup', up);
     });
     img.onclick = () => {
-      const { H, slideW } = SS.canvasSize();
+      const { H } = SS.canvasSize();
+      const mitte = SS.aktuelleSlideMitte();
       const el = SS.normalizeEl({
         id: SS.uid(), type: 'photo', imgId,
-        x: slideW / 2, y: H / 2, rot: 0,
+        x: mitte.x, y: mitte.y, rot: 0,
         h: Math.min(H * 0.55, 760), flip: false, opacity: 1,
         frame: SS.defaultFrame(), filter: SS.defaultFilter(),
       });
@@ -465,11 +467,14 @@ SS.ui = {};
     const id = st.bg.id || '';
     return /nacht|schwarzgold|smaragd|bordeaux|nachtgold|graphit|samt|goldstaub|bokeh|marmorgold/.test(id);
   }
+  SS.ui.bgIstDunkel = bgIsDark;
+
   $('addText').onclick = () => {
-    const { H, slideW } = SS.canvasSize();
+    const { H } = SS.canvasSize();
+    const mitte = SS.aktuelleSlideMitte();
     const el = {
       id: SS.uid(), type: 'text', content: 'Dein Text',
-      x: slideW / 2, y: H * 0.8, rot: 0,
+      x: mitte.x, y: H * 0.8, rot: 0,
       font: 'Lora', size: 52, color: bgIsDark() ? '#f2e9dc' : '#5c4a42',
       bold: false, italic: true, align: 'center',
       letterSpacing: 0, lineHeight: 1.4, opacity: 1,
@@ -485,8 +490,30 @@ SS.ui = {};
 
   /* ================= sticker panel ================= */
   const stGrid = $('stGrid');
+
+  /* Zuletzt benutzte Sticker – bei 276 Motiven findet man sonst nichts wieder */
+  const ZULETZT_KEY = 'ss5.zuletzt';
+  let zuletzt = [];
+  try { zuletzt = JSON.parse(localStorage.getItem(ZULETZT_KEY) || '[]'); } catch (e) {}
+  SS.stickerBenutzt = function (id) {
+    zuletzt = [id].concat(zuletzt.filter(x => x !== id)).slice(0, 24);
+    try { localStorage.setItem(ZULETZT_KEY, JSON.stringify(zuletzt)); } catch (e) {}
+  };
+
   function renderStGrid(cat) {
     stGrid.innerHTML = '';
+    if (cat === 'zuletzt') {
+      const liste = zuletzt.map(id => SS.STICKERS.find(s => s.id === id)).filter(Boolean);
+      if (!liste.length) {
+        const p = document.createElement('p');
+        p.className = 'hint';
+        p.textContent = 'Hier sammeln sich die Sticker, die du zuletzt benutzt hast.';
+        stGrid.appendChild(p);
+        return;
+      }
+      for (const def of liste) stGrid.appendChild(stickerSwatch(def));
+      return;
+    }
     if (cat === 'privacy') {
       // vector privacy stickers + blur tools
       for (const def of SS.STICKERS.filter(s => s.cat === 'privacy')) stGrid.appendChild(stickerSwatch(def));
@@ -534,16 +561,17 @@ SS.ui = {};
   }
 
   function addSticker(def) {
-    const { H, slideW } = SS.canvasSize();
+    const mitte = SS.aktuelleSlideMitte();
     const col = stickerFarbe(def.cat);
     const el = {
       id: SS.uid(), type: 'sticker', kind: def.id, cat: def.cat,
-      x: slideW / 2, y: H / 2, rot: 0,
+      x: mitte.x, y: mitte.y, rot: 0,
       s: def.cat === 'privacy' ? 320 : 160, color: col, opacity: 1,
       anim: def.anim || 'none',
     };
     SS.normalizeEl(el);
     st.elements.push(el); SS.setSel(el.id);
+    SS.stickerBenutzt && SS.stickerBenutzt(def.id);
     SS.pushHistory('Sticker hinzugefügt'); SS.ui.showProps(); SS.requestRender();
     if (isMobile()) $('sidepanel').classList.remove('open');
   }
@@ -555,10 +583,10 @@ SS.ui = {};
     const rec = await SS.loadImageFilePNG(f);
     const imgId = 'stk' + Date.now();
     SS.images[imgId] = rec;
-    const { H, slideW } = SS.canvasSize();
+    const mitte = SS.aktuelleSlideMitte();
     st.elements.push(SS.normalizeEl({
       id: SS.uid(), type: 'photo', imgId,
-      x: slideW / 2, y: H / 2, rot: 0, h: 300, flip: false, opacity: 1,
+      x: mitte.x, y: mitte.y, rot: 0, h: 300, flip: false, opacity: 1,
       frame: Object.assign(SS.defaultFrame(), { style: 'none', shadow: 0 }),
       filter: SS.defaultFilter(),
     }));
@@ -569,10 +597,10 @@ SS.ui = {};
   });
 
   function addBlur(bt) {
-    const { H, slideW } = SS.canvasSize();
+    const mitte = SS.aktuelleSlideMitte();
     const el = {
       id: SS.uid(), type: 'blur', shape: bt.shape, pixelate: !!bt.pixelate,
-      x: slideW / 2, y: H / 2, rot: 0, w: 300, h: 300, strength: 18, opacity: 1,
+      x: mitte.x, y: mitte.y, rot: 0, w: 300, h: 300, strength: 18, opacity: 1,
     };
     SS.normalizeEl(el);
     st.elements.push(el); SS.setSel(el.id);
@@ -584,6 +612,8 @@ SS.ui = {};
     b.onclick = () => {
       document.querySelectorAll('#stTabs button').forEach(x => x.classList.remove('active'));
       b.classList.add('active');
+      // gewählten Reiter in die sichtbare Zeile holen
+      try { b.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' }); } catch (e) {}
       renderStGrid(b.dataset.cat);
     };
   });
@@ -592,8 +622,8 @@ SS.ui = {};
   $('addEmoji').onclick = () => {
     const v = $('emojiInput').value.trim();
     if (!v) return;
-    const { H, slideW } = SS.canvasSize();
-    st.elements.push(SS.normalizeEl({ id: SS.uid(), type: 'emoji', char: v, x: slideW / 2, y: H / 2, rot: 0, s: 180, opacity: 1 }));
+    const mitte = SS.aktuelleSlideMitte();
+    st.elements.push(SS.normalizeEl({ id: SS.uid(), type: 'emoji', char: v, x: mitte.x, y: mitte.y, rot: 0, s: 180, opacity: 1 }));
     SS.setSel(st.elements[st.elements.length - 1].id);
     SS.pushHistory('Emoji hinzugefügt'); SS.ui.showProps(); SS.requestRender();
   };
@@ -1119,10 +1149,31 @@ SS.ui = {};
 
   SS.ui.toggleLasso = function () {
     SS.lassoMode = !SS.lassoMode;
+    if (SS.lassoMode && SS.panMode) SS.ui.setHand(false, true);   // beide zusammen geht nicht
     const b = $('btnLasso');
     if (b) b.classList.toggle('active', SS.lassoMode);
     SS.toast(SS.lassoMode ? 'Lasso an – zieh ein Rechteck über die Elemente' : 'Lasso aus', 2200);
   };
+
+  /* Hand-Modus: die Leinwand verschieben, ohne aus Versehen ein Foto
+     oder einen Sticker mitzunehmen. Am Rechner zusätzlich mit der Leertaste. */
+  SS.ui.setHand = function (an, still) {
+    SS.panMode = !!an;
+    if (SS.panMode && SS.lassoMode) {
+      SS.lassoMode = false;
+      const l = $('btnLasso'); if (l) l.classList.remove('active');
+    }
+    const b = $('btnHand');
+    if (b) b.classList.toggle('active', SS.panMode);
+    document.body.classList.toggle('hand-mode', SS.panMode);
+    if (!still) {
+      SS.buzz && SS.buzz();
+      SS.toast(SS.panMode
+        ? 'Hand an – ziehen verschiebt nur die Leinwand'
+        : 'Hand aus – Elemente lassen sich wieder bewegen', 2200);
+    }
+  };
+  SS.ui.toggleHand = function () { SS.ui.setHand(!SS.panMode); };
 
   let boundaryWarned = false;
   SS.ui.warnBoundary = function (bad) {
@@ -1408,17 +1459,27 @@ SS.ui = {};
       body.appendChild(h);
     }
 
+    /* Kacheln mit laufender Vorschau statt bloßer Namen –
+       man sieht die Bewegung, bevor man sie auswählt. */
     const list = document.createElement('div');
-    list.className = 'chips anim-list';
+    list.className = 'anim-grid';
     SS.ANIMS.filter(a => a.group === _animGroup).forEach(a => {
       const b = document.createElement('button');
-      b.textContent = a.name;
+      b.className = 'anim-kachel' + (a.id === cur ? ' sel' : '');
       b.title = a.desc || '';
-      if (a.id === cur) b.classList.add('sel');
+      const cv = document.createElement('canvas');
+      cv.width = 108; cv.height = 108;
+      cv.dataset.anim = a.id;
+      cv.dataset.typ = sel.type;
+      b.appendChild(cv);
+      const lb = document.createElement('span');
+      lb.textContent = a.name;
+      b.appendChild(lb);
       b.onclick = () => { sel.anim = a.id; SS.pushHistory(); SS.ui.showProps(); SS.requestRender(); };
       list.appendChild(b);
     });
     body.appendChild(list);
+    SS.animPreviewStart && SS.animPreviewStart(list);
 
     if (cur !== 'none') {
       const d = document.createElement('p');

@@ -74,7 +74,13 @@
         if (!v.paused) v.pause();
         continue;
       }
-      if (Math.abs(v.currentTime - local) > 0.28) {
+      /* currentTime zu setzen heißt auf iOS: echter Seek. Der bricht die
+         laufende Dekodierung ab. Deshalb nur bei größerer Abweichung und
+         höchstens alle 400 ms – dazwischen läuft das Video von selbst weiter. */
+      const jetzt = performance.now();
+      const abw = Math.abs(v.currentTime - local);
+      if (abw > (playing ? 0.5 : 0.12) && jetzt - (rec._seek || 0) > 400) {
+        rec._seek = jetzt;
         try { v.currentTime = Math.min(local, (v.duration || 1) - 0.05); } catch (e) {}
       }
       v.muted = el.muted !== false;
@@ -109,29 +115,69 @@
 
   /* Auf der Bearbeitungs-Leinwand laufen die Clips still mit,
      solange nicht der Leistungsmodus an ist. */
-  let liveRaf = null;
-  function liveTick() {
+  let liveRaf = null, letztes = 0;
+  const ZIEL_MS = 1000 / 30;    // Video läuft mit 30 fps – 60 wäre die Hälfte umsonst
+  function liveTick(ts) {
     liveRaf = null;
     const clips = st.elements.filter(e => e.type === 'video' && !e.hidden && e.preview !== false);
-    if (!clips.length || st.perfMode) return;
+    if (!clips.length || st.perfMode || document.hidden) return;
     let need = false;
     for (const el of clips) {
       const rec = SS.videos[el.vidId];
       if (rec && rec.el && rec.el.readyState >= 2 && !rec.el.paused) need = true;
     }
-    if (need) SS.requestRender();
+    const now = ts || performance.now();
+    if (need && now - letztes >= ZIEL_MS - 1) {
+      letztes = now;
+      SS.motionHint && SS.motionHint(120);   // laufender Clip = Bewegung → gröber zeichnen
+      SS.requestRender();
+    }
     liveRaf = requestAnimationFrame(liveTick);
   }
+  // Läuft die App im Hintergrund, ruht alles
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { if (liveRaf) { cancelAnimationFrame(liveRaf); liveRaf = null; } }
+    else if (!liveRaf && st.elements.some(e => e.type === 'video')) liveRaf = requestAnimationFrame(liveTick);
+  });
+  /* Wenn der Browser es kann, hängen wir uns direkt an die dekodierten
+     Videobilder. Dann wird exakt einmal je Videobild neu gezeichnet –
+     kein einziger Durchgang zu viel. Safari kann das seit 15.4. */
+  function anVideoBilder(rec) {
+    const v = rec.el;
+    if (!v.requestVideoFrameCallback || rec._rvfc) return false;
+    const schritt = () => {
+      rec._rvfc = null;
+      if (v.paused || document.hidden || st.perfMode) return;
+      SS.motionHint && SS.motionHint(120);
+      SS.requestRender();
+      rec._rvfc = v.requestVideoFrameCallback(schritt);
+    };
+    rec._rvfc = v.requestVideoFrameCallback(schritt);
+    return true;
+  }
+
   function livePlay(on) {
+    let perBild = true;
     for (const el of st.elements) {
       if (el.type !== 'video') continue;
       const rec = SS.videos[el.vidId];
       if (!rec || !rec.el) continue;
       rec.el.muted = true;
       rec.el.loop = true;
-      if (on) rec.el.play().catch(() => {}); else rec.el.pause();
+      if (on) {
+        rec.el.play().catch(() => {});
+        if (!anVideoBilder(rec) && !rec.el.requestVideoFrameCallback) perBild = false;
+      } else {
+        rec.el.pause();
+        if (rec._rvfc && rec.el.cancelVideoFrameCallback) {
+          try { rec.el.cancelVideoFrameCallback(rec._rvfc); } catch (e) {}
+        }
+        rec._rvfc = null;
+      }
     }
-    if (on && !liveRaf) liveRaf = requestAnimationFrame(liveTick);
+    // Rückfallebene für ältere Browser: 30 Bilder je Sekunde
+    if (on && !perBild && !liveRaf) liveRaf = requestAnimationFrame(liveTick);
+    if (!on && liveRaf) { cancelAnimationFrame(liveRaf); liveRaf = null; }
   }
   SS.livePlayClips = livePlay;
 
@@ -149,7 +195,7 @@
       setTimeout(res, 4000);
     });
     const vidId = 'v' + Date.now().toString(36);
-    SS.videos[vidId] = { el: v, url, w: v.videoWidth || 720, h: v.videoHeight || 1280, dur: v.duration || 5, name: file.name };
+    SS.videos[vidId] = { el: v, url, datei: file, w: v.videoWidth || 720, h: v.videoHeight || 1280, dur: v.duration || 5, name: file.name };
 
     const { slideW, H, n } = SS.canvasSize();
     const idx = st.elements.filter(e => e.type === 'video').length;
@@ -176,6 +222,8 @@
     SS.toast('Clip eingesetzt – Dauer und Startzeit stehen unten', 3400, 'ok');
   }
 
+  SS.addClipDatei = addClip;
+
   /* ================= Bedienung: Fotos-Panel ================= */
 
   const shelf = $('photoShelf');
@@ -191,11 +239,26 @@
     lab.appendChild(inp);
     inp.addEventListener('change', async (e) => {
       const files = [...(e.target.files || [])];
+      e.target.value = '';
+      if (!files.length) return;
+      // Bei mehreren Dateien ist nur die Leinwand sinnvoll – Hintergrund gibt es einmal
+      let ziel = 'leinwand';
+      if (files.length === 1 && SS.videoZiel) ziel = await SS.videoZiel(files[0]);
+      if (!ziel) return;
+      if (ziel === 'hintergrund') {
+        try {
+          await SS.loadClip(files[0]);
+          SS.clip.datei = files[0];
+          SS.pushHistory('Video als Hintergrund');
+          SS.toast('Video liegt als Hintergrund – Umschalten geht im Video-Tab', 3600, 'ok');
+          SS.requestRender();
+        } catch (err) { SS.toast('Clip konnte nicht gelesen werden', 3400, 'err'); }
+        return;
+      }
       for (const f of files) {
         try { await addClip(f); }
         catch (err) { SS.toast('Clip konnte nicht gelesen werden: ' + f.name, 3400, 'err'); }
       }
-      e.target.value = '';
     });
     const hint = document.createElement('p');
     hint.className = 'hint';
@@ -234,6 +297,22 @@
     info.style.margin = '0 0 8px';
     info.textContent = (rec ? rec.name : 'Clip') + ' · ' + vdur.toFixed(1).replace('.', ',') + ' s Quellmaterial';
     body.appendChild(info);
+
+    // Nachträglich umschalten
+    if (rec && rec.datei && SS.clipZuHintergrund) {
+      const um = document.createElement('button');
+      um.className = 'wide';
+      um.textContent = 'Stattdessen als Hintergrund verwenden';
+      um.onclick = () => SS.clipZuHintergrund(sel);
+      body.appendChild(um);
+      const uh = document.createElement('p');
+      uh.className = 'hint';
+      uh.style.margin = '6px 0 12px';
+      uh.textContent = SS.state.slides > 1
+        ? 'Achtung: dabei wird aus deinen ' + SS.state.slides + ' Slides eine einzige.'
+        : 'Das Video füllt dann die ganze Leinwand.';
+      body.appendChild(uh);
+    }
 
     const live = () => SS.requestRender();
     const done = (l) => SS.pushHistory(l || 'Clip');

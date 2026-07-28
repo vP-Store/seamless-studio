@@ -34,6 +34,30 @@
   $('btnLasso').onclick = () => SS.ui.toggleLasso();
 
   /* ================================================================
+     Hand-Knopf (Leinwand verschieben) – Knopf und Leertaste
+     ================================================================ */
+  const bh = $('btnHand');
+  if (bh) bh.onclick = () => SS.ui.toggleHand();
+
+  document.addEventListener('keydown', (e) => {
+    if (e.code !== 'Space' || e.repeat) return;
+    const t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+    e.preventDefault();
+    SS._spacePan = true;
+    document.body.classList.add('hand-mode');
+  });
+  document.addEventListener('keyup', (e) => {
+    if (e.code !== 'Space') return;
+    SS._spacePan = false;
+    if (!SS.panMode) document.body.classList.remove('hand-mode');
+  });
+  window.addEventListener('blur', () => {
+    SS._spacePan = false;
+    if (!SS.panMode) document.body.classList.remove('hand-mode');
+  });
+
+  /* ================================================================
      Tastenkürzel-Übersicht
      ================================================================ */
   const SHORTCUTS = [
@@ -108,8 +132,20 @@
   SS.ui.setPerfMode = function (on, silent) {
     SS.state.perfMode = on;
     document.body.classList.toggle('perf', on);
+    // Knopf in der Kopfzeile und Häkchen im Projekt-Panel gleich mitführen
+    const b = $('btnPerf');
+    if (b) {
+      b.classList.toggle('active', on);
+      b.title = on ? 'Leistungsmodus an – tippen zum Ausschalten'
+                   : 'Leistungsmodus – Animationen anhalten, wenn es hakt';
+    }
+    const cb = $('perfToggle');
+    if (cb && cb.checked !== on) cb.checked = on;
+    try { localStorage.setItem('ss-perf', on ? '1' : '0'); } catch (e) {}
     if (!silent) SS.toast(on ? 'Leistungsmodus an – Animationen pausieren auf der Leinwand' : 'Leistungsmodus aus', 2600);
   };
+  const bp = $('btnPerf');
+  if (bp) bp.onclick = () => { SS.ui.setPerfMode(!SS.state.perfMode); SS.buzz && SS.buzz(); };
   /* Automatik: viele Elemente oder einbrechende Bildrate */
   let slowFrames = 0, lastT = performance.now();
   setInterval(() => {

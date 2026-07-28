@@ -35,6 +35,8 @@
   <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12 3.4l8.5 4.3-8.5 4.3-8.5-4.3z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M4.6 12l7.4 3.7 7.4-3.7M4.6 16.2l7.4 3.7 7.4-3.7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
   <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M9.2 3.5v17M14.8 3.5v17M3.5 9.2h17M3.5 14.8h17" stroke="currentColor" stroke-width="1.3" fill="none"/></symbol>
   <symbol id="i-lasso" viewBox="0 0 24 24"><path d="M12 4.2c4.4 0 8 2.4 8 5.4 0 3-3.6 5.4-8 5.4-1 0-2-.1-2.9-.4-1 .6-1.6 1.4-1.6 2.2 0 .5.2 1 .6 1.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-dasharray="3 2.6"/><circle cx="8" cy="19.4" r="1.7" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+  <symbol id="i-hand" viewBox="0 0 24 24"><path d="M8.6 11V5.4a1.4 1.4 0 0 1 2.8 0V11m0-1.2V4.4a1.4 1.4 0 0 1 2.8 0V11m0-1.2a1.4 1.4 0 0 1 2.8 0V11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M17 9.8a1.4 1.4 0 0 1 2.8 0v4.4c0 3.4-2.6 6-6 6h-1.6c-1.7 0-3.3-.8-4.3-2.2L5 13.6c-.5-.7-.3-1.6.4-2 .6-.4 1.4-.3 1.9.3l1.3 1.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-gauge" viewBox="0 0 24 24"><path d="M4 17a8.4 8.4 0 1 1 16 0" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M12 16.4l4-4.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="16.6" r="1.5" fill="currentColor"/></symbol>
   <symbol id="i-video" viewBox="0 0 24 24"><rect x="2.6" y="6" width="13" height="12" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M15.6 11l4.2-2.6c.5-.3 1.2 0 1.2.6v6c0 .6-.7 1-1.2.6L15.6 13z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
   <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V6.5l10-2v11" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="6.5" cy="18" r="2.5" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="16.5" cy="15.5" r="2.5" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
   <symbol id="i-group" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="9" height="9" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.7"/><rect x="11.5" y="11.5" width="9" height="9" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
@@ -86,7 +88,9 @@
     <button id="btnLayers" class="icon-btn" title="Ebenen (Strg+L)"><svg><use href="#i-layers"/></svg></button>
     <button id="btnGrid" class="icon-btn" title="Raster & Safe-Zones"><svg><use href="#i-grid"/></svg></button>
     <button id="btnLasso" class="icon-btn" title="Lasso-Auswahl (L)"><svg><use href="#i-lasso"/></svg></button>
+    <button id="btnHand" class="icon-btn" title="Leinwand verschieben – nichts verrutscht (Leertaste)"><svg><use href="#i-hand"/></svg></button>
     <button id="btnTheme" class="icon-btn" title="Hell/Dunkel"><svg><use href="#i-theme"/></svg></button>
+    <button id="btnPerf" class="icon-btn" title="Leistungsmodus – Animationen anhalten"><svg><use href="#i-gauge"/></svg></button>
     <button id="btnPreview" class="icon-btn" title="Wisch-Vorschau"><svg><use href="#i-eye"/></svg></button>
     <button id="btnExport" class="primary"><svg><use href="#i-export"/></svg><span>Export</span></button>
   </div>
@@ -167,6 +171,7 @@
     <section class="panel" id="panel-stickers">
       <h3>Sticker &amp; Akzente</h3>
       <div class="subtabs" id="stTabs">
+        <button data-cat="zuletzt">Zuletzt</button>
         <button data-cat="herzen" class="active">Herzen</button>
         <button data-cat="funkeln">Funkeln</button>
         <button data-cat="feiern">Feiern</button>
@@ -176,6 +181,13 @@
         <button data-cat="boho">Boho</button>
         <button data-cat="himmel">Himmel</button>
         <button data-cat="label">Etiketten</button>
+        <button data-cat="fest">Feste</button>
+        <button data-cat="reise">Reise</button>
+        <button data-cat="food">Café</button>
+        <button data-cat="botanik">Botanik</button>
+        <button data-cat="rahmen">Rahmen</button>
+        <button data-cat="hand">Handgemalt</button>
+        <button data-cat="biz">Angebot</button>
         <button data-cat="spirit">Spirituell</button>
         <button data-cat="glanz">Effekte</button>
         <button data-cat="privacy">Privacy</button>
@@ -294,6 +306,8 @@
         <div class="ctl"><span>Start</span><input type="range" id="vidClipStart" min="0" max="1000" value="0"></div>
         <div class="ctl"><span>Ende</span><input type="range" id="vidClipEnd" min="0" max="1000" value="1000"></div>
         <p class="hint" id="vidClipTrim"></p>
+        <button id="vidClipToCanvas" class="wide">Stattdessen auf die Leinwand legen</button>
+        <p class="hint">Dann läuft der Clip wie ein Foto auf der Leinwand und dein Panorama kommt zurück.</p>
         <button id="vidClipDel" class="wide danger">✕ Clip entfernen</button>
       </div>
       <p class="hint">Der Clip liegt als Hintergrund auf der Leinwand – Text, Sticker, Animationen und eigene PNGs legst du wie gewohnt darüber.</p>
@@ -422,13 +436,14 @@
 
 <!-- ======= SWIPE PREVIEW ======= -->
 <div id="previewDlg" class="modal hidden">
+  <button id="previewClose" aria-label="Vorschau schließen" title="Vorschau schließen">✕</button>
   <div class="preview-card">
+    <div class="preview-grip" aria-hidden="true"></div>
     <div class="preview-top">
       <div class="chips" id="previewCrop">
         <button data-crop="feed" class="sel">Feed 4:5</button>
         <button data-crop="profile">Profil 3:4</button>
       </div>
-      <button id="previewClose">✕</button>
     </div>
     <div class="phone">
       <div class="phone-notch"></div>
@@ -580,15 +595,22 @@
 <script src="exporter.js"></script>
 <script src="main.js"></script>
 <script src="content5.js"></script>
+<script src="stickers3.js"></script>
 <script src="export5.js"></script>
 <script src="caption5.js"></script>
 <script src="beat5.js"></script>
 <script src="motion5.js"></script>
 <script src="pro5.js"></script>
+<script src="anim52.js"></script>
+<script src="animprev52.js"></script>
+<script src="vidziel5.js"></script>
 <script src="clips5.js"></script>
 <script src="mix5.js"></script>
 <script src="curve5.js"></script>
 <script src="kf5.js"></script>
+<script src="pfadtext6.js"></script>
+<script src="layouts6.js"></script>
+<script src="pfadui6.js"></script>
 <script src="studio5.js"></script>
 </body>
 </html>

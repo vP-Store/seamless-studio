@@ -501,9 +501,24 @@ SS.video = {};
 
   $('vidClipFile').addEventListener('change', async (e) => {
     const f = e.target.files[0];
+    e.target.value = '';
     if (!f) return;
+    /* Erst fragen, wohin – bisher wurde hier ungefragt der Hintergrund ersetzt
+       und dabei das Panorama auf eine Slide zusammengeklappt. */
+    if (SS.videoZiel) {
+      const ziel = await SS.videoZiel(f);
+      if (!ziel) return;
+      if (ziel === 'leinwand') {
+        try {
+          await SS.addClipDatei(f);
+          const t = document.querySelector('#toolbar .tool[data-panel="photos"]'); if (t) t.click();
+        } catch (err) { SS.toast('Clip konnte nicht gelesen werden', 3400, 'err'); }
+        return;
+      }
+    }
     try {
       const cl = await SS.loadClip(f);
+      cl.datei = f;
       $('vidClipStart').value = '0';
       $('vidClipEnd').value = '1000';
       V.opts.style = 'still';
@@ -515,7 +530,6 @@ SS.video = {};
       V.refresh(false);
       SS.toast('Clip geladen – jetzt Text und Sticker darüber legen', 3200, 'ok');
     } catch (err) { SS.toast(err.message); }
-    e.target.value = '';
   });
 
   function trim() {
@@ -539,6 +553,13 @@ SS.video = {};
     const cl = SS.clip; if (!cl) return;
     SS.clipSeek(0);
   });
+  const zurLeinwand = $('vidClipToCanvas');
+  if (zurLeinwand) zurLeinwand.onclick = async () => {
+    V.pause();
+    if (SS.hintergrundZuClip) await SS.hintergrundZuClip();
+    syncClipUI();
+    V.refresh(false);
+  };
   $('vidClipDel').onclick = () => {
     V.pause();
     SS.clipClear();

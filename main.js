@@ -43,7 +43,9 @@
   (function tick() {
     if (SS.hasAnimation && SS.hasAnimation() && !document.hidden && !SS.state.perfMode) {
       SS.animT = performance.now() / 1000;
-      SS.render();
+      // requestRender statt render: fällt mit dem Clip-Takt in EIN Bild zusammen,
+      // statt zweimal pro Bild die ganze Leinwand zu zeichnen
+      SS.requestRender();
     }
     requestAnimationFrame(tick);
   })();

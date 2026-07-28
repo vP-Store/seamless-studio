@@ -406,7 +406,14 @@ button.primary:active, label.primary:active { transform: scale(.98); }
 /* ---------- modal ---------- */
 .modal {
   position: fixed; inset: 0; background: rgba(20, 17, 15, .6);
-  display: flex; align-items: center; justify-content: center; z-index: 60; padding: 16px;
+  display: flex; align-items: center; justify-content: center; z-index: 60;
+  padding: calc(16px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom));
+  overflow-y: auto; -webkit-overflow-scrolling: touch;
+}
+/* Ist der Inhalt höher als der Bildschirm, oben ausrichten statt mittig –
+   sonst ragt der obere Rand aus dem Flex-Container und ist nicht erreichbar. */
+@media (max-height: 780px) {
+  .modal { align-items: flex-start; }
 }
 .modal-card {
   background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
@@ -437,14 +444,31 @@ button.primary:active, label.primary:active { transform: scale(.98); }
 .progress div { height: 100%; width: 0; background: var(--accent); transition: width .2s var(--ease); }
 
 /* ---------- swipe preview ---------- */
-.preview-card { width: 100%; max-width: 400px; animation: esIn .25s var(--ease); }
+.preview-card {
+  width: 100%; max-width: 400px; animation: esIn .25s var(--ease);
+  touch-action: pan-y; will-change: transform;
+}
 .preview-top {
-  display: flex; justify-content: space-between; align-items: center;
+  display: flex; justify-content: center; align-items: center;
   color: var(--ink); font-size: 12px; margin-bottom: 14px;
 }
-.preview-top button {
-  width: 34px; height: 34px; border-radius: var(--radius-sm);
-  background: transparent; border: 1px solid var(--line-strong); color: var(--ink); font-size: 14px;
+/* Schließen: großer runder Knopf, fest oben rechts, immer unter der Statusleiste */
+#previewClose {
+  position: fixed; z-index: 3;
+  top: calc(10px + env(safe-area-inset-top)); right: 12px;
+  width: 46px; height: 46px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(20, 17, 15, .72); color: #fff; font-size: 18px; line-height: 1;
+  border: 1px solid rgba(255, 255, 255, .28);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, .35);
+}
+#previewClose:active { transform: scale(.92); }
+body.light #previewClose { background: rgba(255, 255, 255, .86); color: #2b241f; border-color: rgba(0, 0, 0, .16); }
+/* Griff zum Runterwischen */
+.preview-grip {
+  width: 40px; height: 4px; border-radius: 2px; margin: 0 auto 12px;
+  background: var(--line-strong); opacity: .8;
 }
 .phone {
   background: #000; border-radius: 24px; padding: 12px 10px 20px; position: relative;
@@ -908,6 +932,10 @@ body.perf .grid .swatch { transition: none; }
   .ss-num { min-width: 20px; height: 18px; line-height: 18px; }
 
   #toast { bottom: calc(150px + env(safe-area-inset-bottom)); }
+
+  /* Vorschau: Karte startet unter dem Schließen-Knopf und darf scrollen */
+  #previewDlg { align-items: flex-start; padding-top: calc(66px + env(safe-area-inset-top)); }
+  #previewClose { width: 48px; height: 48px; font-size: 20px; }
 }
 
 /* ============================================================
@@ -1167,4 +1195,105 @@ body.perf *, body.perf *::before, body.perf *::after {
   #toast { bottom: 150px; }
   .es-card { padding: 24px 20px; }
   .phone { border-radius: 20px; }
+}
+
+/* ============================================================
+   Hand-Modus – Leinwand verschieben, ohne etwas zu verrutschen
+   ============================================================ */
+body.hand-mode #canvas { cursor: grab; }
+body.hand-mode #canvas:active { cursor: grabbing; }
+body.hand-mode #stage::after {
+  content: 'Hand an – ziehen verschiebt die Leinwand';
+  position: absolute; left: 50%; transform: translateX(-50%);
+  bottom: 12px; z-index: 4; pointer-events: none;
+  padding: 6px 12px; border-radius: 999px; font-size: 11px; letter-spacing: .2px;
+  background: rgba(200, 85, 61, .92); color: #fff;
+  border: 1px solid rgba(255, 255, 255, .18);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .35);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+@media (max-width: 760px) {
+  body.hand-mode #stage::after { bottom: 76px; font-size: 10.5px; }
+  body.ss-sheet.hand-mode #stage::after { display: none; }
+}
+
+/* ============================================================
+   Wohin mit dem Video? – Wahldialog
+   ============================================================ */
+.vz-card { max-width: 560px; }
+.vz-wrap { display: flex; gap: 16px; align-items: flex-start; }
+.vz-thumb {
+  flex: 0 0 132px; border-radius: var(--radius-sm); overflow: hidden;
+  border: 1px solid var(--line); background: var(--bg2); position: relative;
+}
+.vz-thumb img { width: 100%; display: block; }
+.vz-thumb span {
+  position: absolute; left: 0; right: 0; bottom: 0; padding: 4px 6px;
+  font-size: 10px; text-align: center; color: #f2eae2; background: rgba(10, 8, 6, .62);
+}
+.vz-opts { flex: 1; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.vz-opt {
+  display: grid; grid-template-columns: 44px 1fr; grid-template-rows: auto auto;
+  gap: 2px 12px; text-align: left; align-items: start;
+  padding: 14px; border-radius: var(--radius-sm);
+  border: 1px solid var(--line-strong); background: var(--bg2); color: var(--ink);
+  transition: border-color .15s, background .15s, transform .15s var(--ease);
+}
+.vz-opt:hover { border-color: var(--accent); background: var(--panel); }
+.vz-opt:active { transform: scale(.985); }
+.vz-ico { grid-row: 1 / span 2; color: var(--accent); }
+.vz-ico svg { width: 44px; height: 34px; display: block; }
+.vz-opt b { font-size: 14px; font-weight: 600; }
+.vz-opt small { font-size: 11.5px; line-height: 1.45; color: var(--ink-mid); }
+.vz-opt small b { font-weight: 600; color: var(--ink); }
+@media (max-width: 760px) {
+  .vz-wrap { flex-direction: column; }
+  .vz-thumb { flex: none; width: 100%; max-height: 150px; }
+  .vz-thumb img { object-fit: cover; max-height: 150px; }
+  .vz-opt { padding: 12px; gap: 2px 10px; grid-template-columns: 38px 1fr; }
+  .vz-ico svg { width: 38px; height: 30px; }
+}
+
+/* ============================================================
+   Animations-Kacheln mit laufender Vorschau
+   ============================================================ */
+.anim-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 8px; margin-top: 10px;
+}
+.anim-kachel {
+  display: flex; flex-direction: column; align-items: stretch; gap: 0;
+  padding: 0; overflow: hidden; text-align: center;
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: var(--bg2); color: var(--ink);
+  transition: border-color .15s, background .15s, transform .15s var(--ease);
+}
+.anim-kachel canvas { width: 100%; height: auto; aspect-ratio: 1; display: block; }
+.anim-kachel span {
+  display: block; padding: 5px 4px 6px; font-size: 9.5px; line-height: 1.2;
+  color: var(--ink-mid); border-top: 1px solid var(--line);
+  overflow: hidden; text-overflow: ellipsis;
+}
+.anim-kachel:hover { border-color: var(--accent); }
+.anim-kachel:active { transform: scale(.96); }
+.anim-kachel.sel { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(200, 85, 61, .28); }
+.anim-kachel.sel span { color: var(--ink); background: rgba(200, 85, 61, .14); }
+@media (max-width: 760px) {
+  .anim-grid { grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 7px; }
+  .anim-kachel span { font-size: 9px; padding: 5px 3px; }
+}
+
+/* ============================================================
+   Sticker-Kategorien: bei 20 Reitern eine Zeile zum Wischen
+   statt fünf gestapelter Reihen
+   ============================================================ */
+#stTabs {
+  display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 6px;
+  scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch;
+  scrollbar-width: none; padding-bottom: 2px;
+}
+#stTabs::-webkit-scrollbar { display: none; }
+#stTabs button { flex: 0 0 auto; scroll-snap-align: start; white-space: nowrap; }
+@media (max-width: 760px) {
+  #stTabs button { padding: 9px 13px; font-size: 12px; }
 }
