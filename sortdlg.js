@@ -5,8 +5,9 @@
 (function () {
   const $ = SS.el;
 
-  /* items: [{dataURL, rec}]  →  Promise<{order:number[], mode:'order'|'auto'}|null> */
-  SS.sortDialog = function (items) {
+  /* items: [{dataURL, rec}]  →  Promise<{order:number[], mode:'order'|'auto'|'none'}|null>
+     loadMore(FileList) → Promise<neue items>  (werden an items angehängt) */
+  SS.sortDialog = function (items, loadMore) {
     return new Promise((resolve) => {
       const dlg = $('sortDlg');
       const grid = $('sortGrid');
@@ -14,7 +15,7 @@
       dlg.classList.remove('hidden');
       $('sortCount').textContent = items.length + (items.length === 1 ? ' Foto' : ' Fotos');
 
-      items.forEach((it, i) => {
+      function addTile(it, i) {
         const tile = document.createElement('div');
         tile.className = 'sort-tile';
         tile.dataset.idx = String(i);
@@ -24,8 +25,28 @@
           `<div class="st-arrows"><button class="st-l" title="Nach vorn">←</button>` +
           `<button class="st-r" title="Nach hinten">→</button></div>`;
         grid.appendChild(tile);
-      });
+      }
+      items.forEach(addTile);
       renumber();
+      $('sortCount').textContent = items.length + (items.length === 1 ? ' Foto' : ' Fotos');
+
+      /* ---- weitere Fotos nachladen ---- */
+      const moreInp = $('sortMoreInput');
+      const onMore = async (e) => {
+        const fl = e.target.files;
+        if (!fl || !fl.length || !loadMore) return;
+        SS.toast('Lade weitere Fotos …', 1600);
+        try {
+          const neu = await loadMore(fl);
+          const ab = items.length;
+          neu.forEach((it, k) => { items.push(it); addTile(it, ab + k); });
+          renumber();
+          $('sortCount').textContent = items.length + (items.length === 1 ? ' Foto' : ' Fotos');
+          SS.toast(`${neu.length} weitere Fotos hinzugefügt — jetzt sind es ${items.length}`, 2600, 'ok');
+        } catch (err) { SS.toast('Konnte nicht geladen werden', 2400, 'err'); }
+        e.target.value = '';
+      };
+      moreInp.addEventListener('change', onMore);
 
       function tiles() { return [...grid.children]; }
       function renumber() { tiles().forEach((t, i) => { t.querySelector('.st-num').textContent = i + 1; }); }
@@ -81,6 +102,7 @@
         dlg.classList.add('hidden');
         ['sortApply', 'sortAuto', 'sortCancel', 'sortClose', 'sortReverse', 'sortShuffleBtn']
           .forEach(id => { const b = $(id); if (b) b.onclick = null; });
+        moreInp.removeEventListener('change', onMore);
       }
       $('sortApply').onclick = () => finish('order');     // links → rechts wie gezeigt
       $('sortAuto').onclick = () => finish('auto');       // App wählt einen schönen Rhythmus

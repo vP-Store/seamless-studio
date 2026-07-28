@@ -479,6 +479,49 @@ function drawCurvedLine(c, el, ln, cy) {
   c.restore();
 }
 
+/* Eine Zeile Buchstabe für Buchstabe zeichnen (Buchstaben-Animationen) */
+function drawLinePerChar(c, el, chars, wordIdx, startIdx, total, x, y, def) {
+  const ls = el.letterSpacing || 0;
+  if (el.letterSpacing) c.letterSpacing = '0px';      // Abstand rechnen wir selbst
+  const widths = chars.map(ch => c.measureText(ch).width);
+  const lineW = widths.reduce((a, b) => a + b, 0) + ls * Math.max(0, chars.length - 1);
+
+  let cx;
+  if (el.align === 'left') cx = x;
+  else if (el.align === 'right') cx = x - lineW;
+  else cx = -lineW / 2;
+
+  const t = SS.animT * (el.animSpeed === undefined ? 1 : el.animSpeed) + (el.animPhase || 0);
+  const A = (el.animAmp === undefined ? 100 : el.animAmp) / 100;
+  const oldAlign = c.textAlign;
+  c.textAlign = 'center';
+
+  for (let i = 0; i < chars.length; i++) {
+    const w = widths[i];
+    if (chars[i] !== ' ') {
+      const f = def.charFn(startIdx + i, total, t, A, wordIdx[i]) || {};
+      const a = f.a === undefined ? 1 : f.a;
+      if (a > 0.004) {
+        c.save();
+        c.translate(cx + w / 2 + (f.dx || 0) * el.size, y + (f.dy || 0) * el.size);
+        if (f.rot) c.rotate(f.rot);
+        const sx = f.sx === undefined ? 1 : f.sx, sy = f.sy === undefined ? 1 : f.sy;
+        if (sx !== 1 || sy !== 1) c.scale(Math.abs(sx) < 0.002 ? 0.002 : sx, Math.abs(sy) < 0.002 ? 0.002 : sy);
+        c.globalAlpha *= a;
+        const merk = _textGlow;
+        if (f.glow > 0.01) _textGlow = { color: el.animGlowColor || el.glowColor || el.color,
+          blur: Math.max(2, el.size * 0.5 * f.glow), power: f.glow };
+        drawStyledLine(c, el, chars[i], 0, 0);
+        _textGlow = merk;
+        c.restore();
+      }
+    }
+    cx += w + ls;
+  }
+  c.textAlign = oldAlign;
+  if (el.letterSpacing) c.letterSpacing = el.letterSpacing + 'px';
+}
+
 SS.drawTextEl = function (c, el) {
   const m = SS.measureText(el);
   const lines = (el.content || ' ').split('\n');
@@ -499,14 +542,43 @@ SS.drawTextEl = function (c, el) {
   paintTextBg(c, el, m, lineWidths);
 
   const innerW = m.w - m.padX * 2;
+
+  // Buchstaben-Animation vorbereiten (Zeichen- und Wortzählung über alle Zeilen)
+  const pcDef = (!SS._noAnim && el.anim && SS.ANIM_BY_ID && SS.ANIM_BY_ID[el.anim]
+    && SS.ANIM_BY_ID[el.anim].perChar) ? SS.ANIM_BY_ID[el.anim] : null;
+  let meta = null;
+  if (pcDef) {
+    let total = 0, wordNr = 0;
+    meta = lines.map(ln => {
+      const chars = [...ln];
+      const wi = [];
+      let inWord = false;
+      for (const ch of chars) {
+        if (ch === ' ') { if (inWord) { wordNr++; inWord = false; } wi.push(wordNr); }
+        else { inWord = true; wi.push(wordNr); }
+      }
+      if (inWord) wordNr++;
+      const o = { chars, wi, start: total };
+      total += chars.length;
+      return o;
+    });
+    meta.total = total;
+  }
+
   lines.forEach((ln, i) => {
     let x;
     if (el.align === 'left') { x = -innerW / 2; c.textAlign = 'left'; }
     else if (el.align === 'right') { x = innerW / 2; c.textAlign = 'right'; }
     else { x = 0; c.textAlign = 'center'; }
     const y = -m.h / 2 + m.padY + m.lh * (i + 0.5);
-    if (el.curve) drawCurvedLine(c, el, ln, y);
-    else drawStyledLine(c, el, ln, x, y);
+    if (pcDef && !el.curve) {
+      const mm = meta[i];
+      drawLinePerChar(c, el, mm.chars, mm.wi, mm.start, meta.total, x, y, pcDef);
+    } else if (el.curve) {
+      drawCurvedLine(c, el, ln, y);
+    } else {
+      drawStyledLine(c, el, ln, x, y);
+    }
   });
   if (el.letterSpacing) c.letterSpacing = '0px';
   _textGlow = null;
@@ -678,12 +750,18 @@ SS.paintScene = function (c, W, H, opts = {}) {
       if (card) drawCardWithShadow(c, el, card);
     } else if (el.type === 'text') {
       if (el.bgStyle === 'glass') {
-        // Milchglas: den Bereich unter dem Textfeld weichzeichnen
+        // Milchglas: den Bereich unter dem Textfeld weichzeichnen – folgt der Animation
         const m = SS.measureText(el);
-        SS.drawBlurEl(c, { x: el.x, y: el.y, rot: el.rot, w: m.w, h: m.h,
-          shape: 'rounded', strength: 14, pixelate: false, scaleX: el.scaleX, scaleY: el.scaleY }, snap());
+        const af = SS.animFrame ? SS.animFrame(el, Math.max(m.h, el.size)) : null;
+        const gx = el.x + (af ? af.dx : 0), gy = el.y + (af ? af.dy : 0);
+        const grot = el.rot + (af && af.rot ? af.rot * 180 / Math.PI : 0);
+        const gsx = (el.scaleX || 1) * (af ? af.sx : 1);
+        const gsy = (el.scaleY || 1) * (af ? af.sy : 1);
+        SS.drawBlurEl(c, { x: gx, y: gy, rot: grot, w: m.w, h: m.h,
+          shape: 'rounded', strength: 14, pixelate: false, scaleX: gsx, scaleY: gsy }, snap());
         c.save();
-        c.translate(el.x, el.y); c.rotate(SS.deg2rad(el.rot));
+        c.translate(gx, gy); c.rotate(SS.deg2rad(grot));
+        if (gsx !== 1 || gsy !== 1) c.scale(gsx, gsy);
         c.globalAlpha = (el.bgAlpha ?? 0.85) * 0.4;
         c.fillStyle = el.bgColor || '#ffffff';
         roundRectPath(c, -m.w / 2, -m.h / 2, m.w, m.h, Math.min(18, m.h / 4));

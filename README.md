@@ -1,4 +1,4 @@
-# ✦ Seamless Studio 4.0
+# ✦ Seamless Studio 4.1
 
 Dein persönlicher Editor für Instagram **Seamless-Panorama-Carousels** und **Reels** — als PWA, komplett offline-fähig. Alle Fotos, Videos und Aufnahmen bleiben zu 100 % auf deinem Gerät.
 
@@ -11,7 +11,7 @@ Dein persönlicher Editor für Instagram **Seamless-Panorama-Carousels** und **R
 - **Verlauf** als anklickbare Zeitleiste – zurück zu jedem einzelnen Schritt
 - **Raster & Hilfslinien**: Drittelregel, 4×4, Goldener Schnitt, Story-Safe-Zone und das 3:4-Profilraster von Instagram
 - **Fotos** hochladen, frei verschieben, drehen, skalieren, spiegeln — mit Maus oder Touch (Zwei-Finger-Gesten)
-- **Sortierdialog beim Import**: Kacheln ziehen oder mit ← → ordnen, dann „In dieser Reihenfolge" oder „Automatisch" anordnen lassen
+- **Sortierdialog beim Import**: Kacheln ziehen oder mit ← → ordnen, dann „In dieser Reihenfolge" oder „Automatisch" anordnen lassen — mit **„＋ Weitere Fotos"**, damit man am Handy Bild für Bild sammeln kann, falls die Foto-Auswahl nur eines auf einmal zulässt
 - **38 Rahmen-Stile**: Polaroid, Herz, Kreis, Bogen, Tape-Ecken, Briefmarke, gerissenes Papier, Filmstreifen u. v. m.
 - **12 Filter-Presets** + manuelle Regler (Helligkeit, Kontrast, Wärme, Vignette, Filmkorn …)
 - **Zuschneiden** mit richtiger Zuschnitt-Box: Seitenverhältnisse, Füllen/Einpassen, 90°-Drehung und Begradigen
@@ -20,15 +20,21 @@ Dein persönlicher Editor für Instagram **Seamless-Panorama-Carousels** und **R
 - **✂️ Freisteller**: Hintergrund automatisch entfernen, einzelne Farben wegnehmen, mit Pinsel nachbessern — läuft komplett offline auf deinem Gerät, Original jederzeit zurückholbar
 - **140 Hintergründe**: Aquarell-Verläufe in 24 Farbwelten, Texturen, Muster, eigenes Bild, eigener Verlauf, Farbton-Regler — dazu **12 nahtlose Panorama-Hintergründe**, die ohne Bruch über alle Slides laufen
 - **12 Looks**, die Hintergrund, Rahmen, Schrift, Textfarbe, Sticker-Farben und Filter in einem Rutsch setzen
-- **~80 Sticker** in 7 Kategorien + Emojis + eigene PNGs — mit „auf die Schnittkante setzen" und „auf alle Kanten verteilen"
+- **131 Sticker** in 9 Kategorien + Emojis + eigene PNGs — darunter **33 spirituelle** (Mondphasen, Mandala, Blume des Lebens, Metatron, Sri Yantra, Merkaba, Lotus, Chakren, Drittes Auge, Nazar, Hamsa, Om, Kristalle, Feder, Engelsflügel, Triquetra, Pentagramm, Baum des Lebens, Räucherbündel, Traumfänger, Sternbild, Aura …) und **19 Glanz- & Effekt-Sticker** (Bokeh, Linsenreflex, Lichtstrahl, Glitzer, Rauch, Neonrahmen, Perlenkette, Goldband, 3D-Schleife, Marmorkugel …) — mit „auf die Schnittkante setzen" und „auf alle Kanten verteilen"
 - **🔒 Privacy-Tools**: deckende Sticker + Unschärfe- und Pixelbereiche in fünf Formen (auch Herz und Stern)
 - **Textfelder** mit **46 Schriftarten** in fünf Gruppen — Schatten, Leuchten, Kontur und Füllung frei kombinierbar, Bogen, 12 Textfeld-Hintergründe. Liegt Text auf einer Schnittkante, zeigt die App die Kante rot und bietet „an Kante spiegeln" oder „automatisch verschieben".
 - **Auto-Layout**, Ausrichten & Verteilen, 8 Vorlagen-Looks, ✦ Farbwelten
 - **Undo/Redo**, Einrasten, Ebenen-Steuerung, Auto-Speichern, Projekt-Galerie, Projekt als Datei sichern/laden
 - **Hell/Dunkel-Modus** (◐-Knopf oben rechts)
 
-### ✨ Animationen (neu in 3.0)
-**76 Animationen** für Fotos, Texte, Sticker und Emojis — jede mit Reglern für Tempo, Stärke und Versatz:
+### 🅣 Textvorlagen (neu in 4.1)
+**20 fertige Textvorlagen** mit angesagten, aufeinander abgestimmten Schriftpaaren — Editorial, Soft Script,
+Statement, Spirituell, Handschrift, Luxus, Neon, Vintage, Minimal, Romantik, Magazin, Zitat, Baby, Boho,
+Label, Outline, Retro-3D, Sanft, Schreibmaschine, Welle. Antippen setzt den fertigen Textblock (mehrzeilig
+und gruppiert) mittig auf die sichtbare Slide — Farben, Größen, Kontur und Schatten sind schon gesetzt.
+
+### ✨ Animationen (neu in 3.0, erweitert in 4.1)
+**97 Animationen** für Fotos, Texte, Sticker und Emojis — jede mit Reglern für Tempo, Stärke und Versatz:
 
 - **🏀 Hüpfen** – 18 Varianten von sanft bis Trampolin: Gummiball, Quetschen & Strecken, Sprungfeder, Pogo, Boing!, Doppel-Hüpfer, Schwerer Aufprall …
 - **〰 Wiggle** – 23 Wackel-Varianten für Icons und Sticker: klassisch, sanft, schnell, seitlich, Gelee, Gummi, Fähnchen, Nudel, Summen, Wiggle im Schub, Eck-Wiggle, Achter, Torkeln, Nicken, Frösteln …
@@ -36,6 +42,10 @@ Dein persönlicher Editor für Instagram **Seamless-Panorama-Carousels** und **R
 - **✨ Leuchten** – weicher Schein, Neon-Flackern, Kerzenschein, Funkeln, Blitzen — mit frei wählbarer Leucht-Farbe
 - **☁ Bewegen** – Schweben, Wiegen, Schaukeln, Zittern, Aufsteigen, Kreisen, Ploppen
 - **↻ Drehen** – Drehen, Salto, Umblättern, Kippen, Schaukelstuhl
+- **🅐 Buchstaben** (neu in 4.1) – **20 Text-Animationen, die jeden Buchstaben einzeln bewegen**, wie in
+  CapCut: Schreibmaschine, Einblenden, Pop-In, Fallen, Aufsteigen, Einfliegen, Streuen, Welle, Hüpfen,
+  Springen, Schwingen, Zoom, Flip, Zittern, Leucht-Lauf, Neon-Einschalten, Wort für Wort (Fade & Pop),
+  Kaskade, Atmen. Nur bei Textfeldern wählbar; der Textfeld-Hintergrund läuft sauber mit.
 
 Ein Knopf überträgt die Animation auf alle gleichartigen Elemente — mit leichtem Versatz, damit es lebendig statt gleichgeschaltet wirkt.
 

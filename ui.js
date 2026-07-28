@@ -89,28 +89,41 @@ SS.ui = {};
   });
   fileInput.addEventListener('change', () => { addFiles(fileInput.files); fileInput.value = ''; });
   if (fileInput2) fileInput2.addEventListener('change', () => { addFiles(fileInput2.files); fileInput2.value = ''; });
+  const fileInput3 = $('fileInput3');   // ohne accept – öffnet am iPhone die Dateien-App
+  if (fileInput3) fileInput3.addEventListener('change', () => { addFiles(fileInput3.files); fileInput3.value = ''; });
 
-  async function addFiles(files) {
-    files = Array.from(files).filter(f => f.type && f.type.startsWith('image/'));
-    if (!files.length) return;
-    SS.toast(files.length > 1 ? `Lade ${files.length} Fotos …` : 'Lade Foto …', 1400);
-
-    // erst alle laden, damit der Sortierdialog echte Vorschaubilder zeigen kann
-    const loaded = [];
-    for (const f of files) {
+  /* Dateien einlesen und in SS.images ablegen */
+  let _imgZaehler = 0;
+  async function ladeBilder(files) {
+    const liste = Array.from(files).filter(f =>
+      f.type ? f.type.startsWith('image/') : /\.(jpe?g|png|gif|webp|heic|heif|avif|bmp)$/i.test(f.name || ''));
+    const out = [];
+    for (const f of liste) {
       try {
         const rec = await SS.loadImageFile(f);
-        const imgId = 'img' + Date.now() + '_' + loaded.length;
+        const imgId = 'img' + Date.now() + '_' + (_imgZaehler++);
         SS.images[imgId] = rec;
-        loaded.push({ imgId, rec, dataURL: rec.dataURL });
-      } catch (err) { SS.toast('Ein Foto konnte nicht geladen werden'); }
+        out.push({ imgId, rec, dataURL: rec.dataURL });
+      } catch (err) { SS.toast('Ein Foto konnte nicht geladen werden', 2600, 'err'); }
     }
+    return out;
+  }
+
+  async function addFiles(files) {
+    const anzahl = Array.from(files).length;
+    if (!anzahl) return;
+    SS.toast(anzahl > 1 ? `Lade ${anzahl} Fotos …` : 'Lade Foto …', 1400);
+
+    const loaded = await ladeBilder(files);
     if (!loaded.length) return;
 
     let order = loaded.map((_, i) => i);
     let mode = 'auto';
-    if (loaded.length > 1 && SS.sortDialog) {
-      const res = await SS.sortDialog(loaded);
+    // Der Sortierdialog kommt auch bei einem einzelnen Foto, wenn schon Fotos da sind –
+    // so lassen sich am Handy mehrere Bilder nacheinander sammeln und dann anordnen.
+    const zeigeDialog = loaded.length > 1 || (isMobile() && st.elements.some(e => e.type === 'photo'));
+    if (zeigeDialog && SS.sortDialog) {
+      const res = await SS.sortDialog(loaded, ladeBilder);
       if (!res) { loaded.forEach(l => { delete SS.images[l.imgId]; }); return; }
       order = res.order; mode = res.mode;
     }
@@ -139,7 +152,8 @@ SS.ui = {};
     if (added.length) SS.setSelMany(added.map(e => e.id)); else SS.clearSel();
 
     if (mode === 'order' || mode === 'auto') autoLayout(1);
-    SS.pushHistory(); SS.ui.showProps(); SS.requestRender();
+    SS.pushHistory('Fotos hinzugefügt'); SS.ui.showProps(); SS.requestRender();
+    SS.toast(`${seq.length} ${seq.length === 1 ? 'Foto' : 'Fotos'} eingefügt`, 2200, 'ok');
     if (isMobile()) $('sidepanel').classList.remove('open');
   }
 
@@ -504,17 +518,24 @@ SS.ui = {};
     cv.width = 108; cv.height = 108;
     const c = cv.getContext('2d');
     c.translate(54, 54);
-    const col = def.cat === 'privacy' ? '#e8a9b4' : (def.cat === 'linien' || def.cat === 'funkeln' ? '#bf9b6c' : '#d68a96');
-    def.draw(c, def.ar ? 96 : 78, col);
+    def.draw(c, def.ar ? 96 : 78, stickerFarbe(def.cat));
     const lb = document.createElement('label'); lb.textContent = def.name;
     sw.appendChild(cv); sw.appendChild(lb);
     sw.onclick = () => addSticker(def);
     return sw;
   }
 
+  function stickerFarbe(cat) {
+    if (cat === 'privacy') return '#e8a9b4';
+    if (cat === 'linien' || cat === 'funkeln') return '#bf9b6c';
+    if (cat === 'spirit') return '#c9a15f';
+    if (cat === 'glanz') return '#d691a8';
+    return '#d68a96';
+  }
+
   function addSticker(def) {
     const { H, slideW } = SS.canvasSize();
-    const col = def.cat === 'privacy' ? '#e8a9b4' : (def.cat === 'linien' || def.cat === 'funkeln' ? '#bf9b6c' : '#d68a96');
+    const col = stickerFarbe(def.cat);
     const el = {
       id: SS.uid(), type: 'sticker', kind: def.id, cat: def.cat,
       x: slideW / 2, y: H / 2, rot: 0,
@@ -1285,6 +1306,46 @@ SS.ui = {};
 
     body.appendChild(h4('Sichtbarkeit'));
     body.appendChild(toggleRow(list[list.length - 1]));
+
+    // Animation für alle Ausgewählten auf einmal
+    const gleich = list.every(e => e.type === list[0].type);
+    body.appendChild(h4('✨ Animation für alle'));
+    const aGruppen = SS.ANIM_GROUPS.filter(g => !g.textOnly || (gleich && list[0].type === 'text'));
+    if (!aGruppen.some(g => g.id === _animGroup)) _animGroup = aGruppen[0].id;
+    const aTabs = document.createElement('div'); aTabs.className = 'subtabs anim-tabs';
+    aGruppen.forEach(g => {
+      const b = document.createElement('button');
+      b.textContent = g.name;
+      if (g.id === _animGroup) b.classList.add('active');
+      b.onclick = () => { _animGroup = g.id; SS.ui.showProps(); };
+      aTabs.appendChild(b);
+    });
+    body.appendChild(aTabs);
+    const aOff = document.createElement('button');
+    aOff.className = 'wide anim-off';
+    aOff.textContent = '✕ Animation bei allen entfernen';
+    aOff.onclick = () => {
+      list.forEach(e => { e.anim = 'none'; });
+      SS.pushHistory('Animation entfernt'); SS.ui.showProps(); SS.requestRender();
+    };
+    body.appendChild(aOff);
+    const aList = document.createElement('div'); aList.className = 'chips anim-list';
+    SS.ANIMS.filter(a => a.group === _animGroup).forEach(a => {
+      const b = document.createElement('button');
+      b.textContent = a.name;
+      b.title = a.desc || '';
+      b.onclick = () => {
+        list.forEach((e, i) => {
+          SS.animDefaults(e);
+          e.anim = a.id;
+          e.animPhase = (i % 6) * 0.2;      // leichter Versatz wirkt lebendiger
+        });
+        SS.pushHistory('Animation'); SS.ui.showProps(); SS.requestRender();
+        SS.toast(`„${a.name}" auf ${list.length} Elemente gelegt`, 2400, 'ok');
+      };
+      aList.appendChild(b);
+    });
+    body.appendChild(aList);
   }
   function ctlSelect(label, val, options, fn) {
     const d = document.createElement('div'); d.className = 'ctl';
@@ -1328,9 +1389,11 @@ SS.ui = {};
     off.onclick = () => { sel.anim = 'none'; SS.pushHistory(); SS.ui.showProps(); SS.requestRender(); };
     body.appendChild(off);
 
+    const gruppen = SS.ANIM_GROUPS.filter(g => !g.textOnly || sel.type === 'text');
+    if (!gruppen.some(g => g.id === _animGroup)) _animGroup = gruppen[0].id;
     const tabs = document.createElement('div');
     tabs.className = 'subtabs anim-tabs';
-    SS.ANIM_GROUPS.forEach(g => {
+    gruppen.forEach(g => {
       const b = document.createElement('button');
       b.textContent = g.name;
       if (g.id === _animGroup) b.classList.add('active');
@@ -1338,6 +1401,12 @@ SS.ui = {};
       tabs.appendChild(b);
     });
     body.appendChild(tabs);
+    if (_animGroup === 'text') {
+      const h = document.createElement('p');
+      h.className = 'hint';
+      h.textContent = 'Diese Animationen bewegen jeden Buchstaben einzeln – wie in Video-Apps.';
+      body.appendChild(h);
+    }
 
     const list = document.createElement('div');
     list.className = 'chips anim-list';

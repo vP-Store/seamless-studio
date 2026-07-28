@@ -1,5 +1,5 @@
 /* Seamless Studio – Service Worker (offline cache) */
-const VERSION = 'ss-v4.0.0';
+const VERSION = 'ss-v4.1.0';
 const ASSETS = [
   './',
   './index.html',
@@ -11,6 +11,7 @@ const ASSETS = [
   './backgrounds.js',
   './frames.js',
   './stickers.js',
+  './stickers2.js',
   './anim.js',
   './render.js',
   './interact.js',
@@ -20,6 +21,7 @@ const ASSETS = [
   './crop.js',
   './layers.js',
   './extras.js',
+  './texttpl.js',
   './ui.js',
   './audio.js',
   './video.js',

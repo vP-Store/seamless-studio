@@ -415,6 +415,8 @@
     const id = el && el.anim;
     if (!id || id === 'none') return null;
     const def = SS.ANIM_BY_ID[id];
+    // Buchstaben-Animationen bewegen nicht den ganzen Block – siehe drawTextEl
+    if (def && def.perChar) return null;
     if (!def || !def.fn) return null;
     const speed = el.animSpeed === undefined ? 1 : el.animSpeed;
     const amp = (el.animAmp === undefined ? 100 : el.animAmp) / 100;
@@ -460,4 +462,155 @@
     const d = SS.ANIM_BY_ID[id];
     return d ? d.desc || d.name : '';
   };
+})();
+
+/* ================================================================
+   Buchstaben-Animationen (nur für Textfelder)
+   Diese Animationen bewegen jeden Buchstaben einzeln – so wie man es
+   aus CapCut kennt. Sie liefern kein Bild-Frame für das ganze Element,
+   sondern eine Funktion charFn(index, anzahl, t, staerke, wortIndex).
+   ================================================================ */
+(function () {
+  const sin = Math.sin, cos = Math.cos, abs = Math.abs, pow = Math.pow;
+  const cl = (v, a, b) => Math.max(a, Math.min(b, v));
+
+  /* Wie weit ist der Buchstabe g in der laufenden Runde?
+     < 0 = noch nicht dran · 0…1 = im Übergang · > 1 = fertig */
+  function reveal(g, n, t, speed, hold) {
+    speed = speed || 9;
+    hold = hold === undefined ? 1.8 : hold;
+    const runde = n / speed + hold;
+    const tt = t % runde;
+    return tt * speed - g;
+  }
+  /* weiches Nachfedern */
+  const spring = (p) => p >= 1 ? 1 : 1 - pow(1 - p, 3) + sin(p * Math.PI * 3) * pow(1 - p, 3) * 0.35;
+  /* deterministischer Streuwert je Buchstabe */
+  const streu = (g, k) => {
+    const s = Math.sin(g * 12.9898 + k * 78.233) * 43758.5453;
+    return s - Math.floor(s);
+  };
+
+  const T = [
+    { id: 't-typewriter', name: 'Schreibmaschine', desc: 'Buchstabe für Buchstabe wie getippt',
+      charFn: (g, n, t, A) => ({ a: reveal(g, n, t, 11) > 0 ? 1 : 0 }) },
+
+    { id: 't-fadein', name: 'Nacheinander einblenden', desc: 'Sanft von links nach rechts',
+      charFn: (g, n, t, A) => ({ a: cl(reveal(g, n, t, 8) * 0.8, 0, 1) }) },
+
+    { id: 't-popin', name: 'Ploppen', desc: 'Jeder Buchstabe springt ins Bild',
+      charFn: (g, n, t, A) => {
+        const p = cl(reveal(g, n, t, 9) * 0.55, 0, 1);
+        const s = p <= 0 ? 0 : 0.2 + spring(p) * 0.8 * (1 + (1 - p) * 0.25 * A);
+        return { a: p <= 0 ? 0 : 1, sx: s, sy: s };
+      } },
+
+    { id: 't-dropin', name: 'Herabfallen', desc: 'Buchstaben fallen von oben herein',
+      charFn: (g, n, t, A) => {
+        const p = cl(reveal(g, n, t, 9) * 0.5, 0, 1);
+        return { a: p <= 0 ? 0 : cl(p * 3, 0, 1), dy: (1 - spring(p)) * -0.9 * A };
+      } },
+
+    { id: 't-riseup', name: 'Aufsteigen', desc: 'Buchstaben steigen von unten auf',
+      charFn: (g, n, t, A) => {
+        const p = cl(reveal(g, n, t, 9) * 0.5, 0, 1);
+        return { a: p <= 0 ? 0 : cl(p * 3, 0, 1), dy: (1 - spring(p)) * 0.9 * A };
+      } },
+
+    { id: 't-slidein', name: 'Einfliegen', desc: 'Von rechts hereingeschoben',
+      charFn: (g, n, t, A) => {
+        const p = cl(reveal(g, n, t, 9) * 0.5, 0, 1);
+        return { a: p <= 0 ? 0 : cl(p * 3, 0, 1), dx: (1 - spring(p)) * 1.4 * A };
+      } },
+
+    { id: 't-scatter', name: 'Zusammenfinden', desc: 'Buchstaben fliegen aus allen Richtungen zusammen',
+      charFn: (g, n, t, A) => {
+        const p = cl(reveal(g, n, t, 7) * 0.42, 0, 1);
+        const q = 1 - spring(p);
+        return { a: p <= 0 ? 0 : cl(p * 2.5, 0, 1),
+          dx: q * (streu(g, 1) - 0.5) * 3 * A,
+          dy: q * (streu(g, 2) - 0.5) * 3 * A,
+          rot: q * (streu(g, 3) - 0.5) * 2.2 * A };
+      } },
+
+    { id: 't-wave', name: 'Welle', desc: 'Eine Welle läuft durch die Buchstaben',
+      charFn: (g, n, t, A) => ({ dy: sin(t * 4 - g * 0.55) * 0.13 * A }) },
+
+    { id: 't-bounce-each', name: 'Hüpfende Buchstaben', desc: 'Einer nach dem anderen hüpft',
+      charFn: (g, n, t, A) => {
+        const ph = (t * 2.2 - g * 0.22) % 1;
+        const h = ph < 0.5 ? 4 * ph * (0.5 - ph) * 4 : 0;
+        return { dy: -h * 0.45 * A };
+      } },
+
+    { id: 't-jump', name: 'Springen', desc: 'Kräftige Sprünge im Versatz',
+      charFn: (g, n, t, A) => {
+        const ph = (t * 1.6 - g * 0.16) % 1;
+        const h = 4 * ph * (1 - ph);
+        return { dy: -h * 0.55 * A, sy: 1 + h * 0.12 * A, sx: 1 - h * 0.06 * A };
+      } },
+
+    { id: 't-swing-each', name: 'Pendeln', desc: 'Buchstaben schwingen versetzt',
+      charFn: (g, n, t, A) => ({ rot: sin(t * 3 - g * 0.4) * 0.24 * A }) },
+
+    { id: 't-zoom-each', name: 'Pulsieren', desc: 'Größe läuft durch die Buchstaben',
+      charFn: (g, n, t, A) => { const s = 1 + sin(t * 3.4 - g * 0.45) * 0.16 * A; return { sx: s, sy: s }; } },
+
+    { id: 't-flip-each', name: 'Umklappen', desc: 'Buchstaben kippen nacheinander um',
+      charFn: (g, n, t, A) => ({ sx: cos(t * 2.6 - g * 0.5) }) },
+
+    { id: 't-shake-each', name: 'Zappeln', desc: 'Jeder Buchstabe zittert für sich',
+      charFn: (g, n, t, A) => ({
+        dx: sin(t * 26 + g * 2.1) * 0.03 * A,
+        dy: cos(t * 31 + g * 1.7) * 0.03 * A,
+        rot: sin(t * 24 + g) * 0.06 * A }) },
+
+    { id: 't-glowrun', name: 'Lichtlauf', desc: 'Ein Leuchten wandert durch das Wort',
+      charFn: (g, n, t, A) => {
+        const pos = (t * 4) % (n + 5) - 2.5;
+        const d = g - pos;
+        const gl = Math.exp(-d * d / 2.2);
+        return { glow: gl, sx: 1 + gl * 0.08 * A, sy: 1 + gl * 0.08 * A };
+      } },
+
+    { id: 't-neonon', name: 'Neon schaltet an', desc: 'Buchstaben flackern nacheinander an',
+      charFn: (g, n, t, A) => {
+        const p = reveal(g, n, t, 6, 2.4);
+        if (p <= 0) return { a: 0.12, glow: 0 };
+        const flack = p < 0.9 ? (0.35 + 0.65 * abs(sin(p * 26 + g))) : 1;
+        return { a: 0.15 + 0.85 * flack, glow: flack };
+      } },
+
+    { id: 't-word-fade', name: 'Wort für Wort', desc: 'Blendet wortweise ein',
+      charFn: (g, n, t, A, w) => ({ a: cl(reveal(w * 4.5, n, t, 8) * 0.7, 0, 1) }) },
+
+    { id: 't-word-pop', name: 'Wort-Ploppen', desc: 'Jedes Wort springt einzeln ins Bild',
+      charFn: (g, n, t, A, w) => {
+        const p = cl(reveal(w * 5, n, t, 8) * 0.5, 0, 1);
+        const s = p <= 0 ? 0 : spring(p);
+        return { a: p <= 0 ? 0 : 1, sx: s, sy: s, dy: (1 - s) * 0.3 * A };
+      } },
+
+    { id: 't-cascade', name: 'Wasserfall', desc: 'Buchstaben fallen versetzt und federn aus',
+      charFn: (g, n, t, A) => {
+        const ph = (t * 1.1 - g * 0.09) % 1;
+        const p = cl(ph * 2.2, 0, 1);
+        return { dy: (1 - spring(p)) * -1.1 * A, a: cl(p * 4, 0, 1) };
+      } },
+
+    { id: 't-breathe-each', name: 'Atmende Buchstaben', desc: 'Ruhiges Auf und Ab im Versatz',
+      charFn: (g, n, t, A) => {
+        const s = 1 + sin(t * 1.5 - g * 0.3) * 0.07 * A;
+        return { sx: s, sy: s, dy: sin(t * 1.5 - g * 0.3) * 0.04 * A };
+      } },
+  ];
+
+  SS.ANIM_GROUPS.push({ id: 'text', name: '🅣 Buchstaben', textOnly: true });
+  for (const a of T) {
+    a.group = 'text';
+    a.perChar = true;
+    SS.ANIMS.push(a);
+    SS.ANIM_BY_ID[a.id] = a;
+  }
+  SS.TEXT_ANIM_COUNT = T.length;
 })();

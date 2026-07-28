@@ -102,6 +102,10 @@
         <input type="file" id="fileInput" accept="image/*" multiple class="file-overlay">
         <div>📷<br><b>Fotos hinzufügen</b><br><small>tippen oder hierher ziehen</small></div>
       </label>
+      <label class="wide btn-like" id="filesBtn">📁 Aus Dateien wählen (mehrere)
+        <input type="file" id="fileInput3" multiple class="file-overlay">
+      </label>
+      <p class="hint">Am Handy lassen sich in der Fotomediathek mehrere Bilder antippen, bevor du auf „Hinzufügen" gehst. Klappt das nicht, nimm „Aus Dateien wählen" — oder füge nacheinander hinzu, im Sortierfenster kannst du jederzeit weitere Fotos nachladen.</p>
       <div id="photoShelf" class="shelf"></div>
       <p class="hint">Tipp: Foto auf der Leinwand antippen → unten „Bearbeiten" für Rahmen, Filter &amp; Zuschnitt.</p>
     </section>
@@ -137,7 +141,10 @@
     <!-- TEXT -->
     <section class="panel" id="panel-text">
       <h3>Text</h3>
-      <button id="addText" class="wide primary">＋ Textfeld erzeugen</button>
+      <button id="addText" class="wide primary">＋ Leeres Textfeld</button>
+      <h3>✍️ Textvorlagen <small>(fertige Schriftkombinationen)</small></h3>
+      <div id="textTplGrid" class="grid tpl-grid"></div>
+      <h3>Schriften</h3>
       <p class="hint">Frei verschieben &amp; drehen. Schrift, Effekte, Bogen und Hintergrund unten im Bearbeiten-Menü.</p>
       <div class="fontpreviews" id="fontPreviews"></div>
     </section>
@@ -152,6 +159,8 @@
         <button data-cat="natur">Natur</button>
         <button data-cat="baby">Baby</button>
         <button data-cat="linien">Deko</button>
+        <button data-cat="spirit">🔮 Spirituell</button>
+        <button data-cat="glanz">✨ Effekte</button>
         <button data-cat="privacy">🔒 Privacy</button>
       </div>
       <div id="stGrid" class="grid sticker-grid"></div>
@@ -515,6 +524,9 @@
     <div class="btnrow">
       <button id="sortReverse" class="chip-btn">⇄ Umkehren</button>
       <button id="sortShuffleBtn" class="chip-btn">🎲 Mischen</button>
+      <label class="chip-btn btn-like" id="sortMore">＋ Weitere Fotos
+        <input type="file" id="sortMoreInput" accept="image/*" multiple class="file-overlay">
+      </label>
     </div>
     <div class="modal-btns">
       <button id="sortCancel">Nur einfügen</button>
@@ -531,6 +543,7 @@
 <script src="backgrounds.js"></script>
 <script src="frames.js"></script>
 <script src="stickers.js"></script>
+<script src="stickers2.js"></script>
 <script src="anim.js"></script>
 <script src="render.js"></script>
 <script src="interact.js"></script>
@@ -541,6 +554,7 @@
 <script src="ui.js"></script>
 <script src="layers.js"></script>
 <script src="extras.js"></script>
+<script src="texttpl.js"></script>
 <script src="audio.js"></script>
 <script src="video.js"></script>
 <script src="exporter.js"></script>
