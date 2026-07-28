@@ -1,13 +1,12 @@
 # Seamless Studio – Projekt-Status & Roadmap
-Stand: 28.07.2026 · Version 4.1 (lokal fertig, **noch nicht deployed**)
+Stand: 28.07.2026 · Version 4.1.1 (**deployed**)
 
-## Live (dort läuft v4.0)
+## Live (dort läuft v4.1.1)
 - **App:** https://vp-store.github.io/seamless-studio/
 - **Repo:** https://github.com/vP-Store/seamless-studio (Branch main, GitHub Pages aktiv)
-- **PWA:** installierbar, offline-fähig, Service Worker Cache-Version `ss-v4.1.0`
+- **PWA:** installierbar, offline-fähig, Service Worker Cache-Version `ss-v4.1.1`
 
-> ⚠️ v4.1 liegt fertig in diesem Ordner, ist aber **bewusst noch nicht hochgeladen**.
-> Erst lokal testen, dann auf Ansage deployen.
+> Regel bleibt: **niemals ungefragt hochladen** – erst lokal testen, dann auf Ansage deployen.
 
 ---
 
