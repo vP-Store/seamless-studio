@@ -32,6 +32,10 @@
   <symbol id="i-export" viewBox="0 0 24 24"><path d="M12 3.5v11M8 10.5l4 4 4-4M4.5 16.5v2.5c0 1 .9 1.5 2 1.5h11c1.1 0 2-.5 2-1.5v-2.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></symbol>
   <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12 3.4l8.5 4.3-8.5 4.3-8.5-4.3z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M4.6 12l7.4 3.7 7.4-3.7M4.6 16.2l7.4 3.7 7.4-3.7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M9.2 3.5v17M14.8 3.5v17M3.5 9.2h17M3.5 14.8h17" stroke="currentColor" stroke-width="1.3" fill="none"/></symbol>
+  <symbol id="i-lasso" viewBox="0 0 24 24"><path d="M12 4.2c4.4 0 8 2.4 8 5.4 0 3-3.6 5.4-8 5.4-1 0-2-.1-2.9-.4-1 .6-1.6 1.4-1.6 2.2 0 .5.2 1 .6 1.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-dasharray="3 2.6"/><circle cx="8" cy="19.4" r="1.7" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+  <symbol id="i-video" viewBox="0 0 24 24"><rect x="2.6" y="6" width="13" height="12" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M15.6 11l4.2-2.6c.5-.3 1.2 0 1.2.6v6c0 .6-.7 1-1.2.6L15.6 13z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
   <symbol id="i-pipette" viewBox="0 0 24 24"><path d="M13.6 6.8l3.6 3.6M15.4 5l1.8-1.8a2 2 0 0 1 2.8 0l.8.8a2 2 0 0 1 0 2.8L19 8.6M15.4 5l3.6 3.6M14.5 7.7L5.9 16.3c-.4.4-.7 1-.8 1.6l-.4 2.6a.7.7 0 0 0 .8.8l2.6-.4c.6-.1 1.2-.4 1.6-.8l8.6-8.6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 </svg>
 
@@ -65,6 +69,9 @@
     <button id="btnUndo" class="icon-btn" title="Rückgängig"><svg><use href="#i-undo"/></svg></button>
     <button id="btnRedo" class="icon-btn" title="Wiederholen"><svg><use href="#i-redo"/></svg></button>
     <button id="btnGuides" class="icon-btn active" title="Schnittkanten"><svg><use href="#i-guides"/></svg></button>
+    <button id="btnLayers" class="icon-btn" title="Ebenen (Strg+L)"><svg><use href="#i-layers"/></svg></button>
+    <button id="btnGrid" class="icon-btn" title="Raster & Safe-Zones"><svg><use href="#i-grid"/></svg></button>
+    <button id="btnLasso" class="icon-btn" title="Lasso-Auswahl (L)"><svg><use href="#i-lasso"/></svg></button>
     <button id="btnTheme" class="icon-btn" title="Hell/Dunkel"><svg><use href="#i-theme"/></svg></button>
     <button id="btnPreview" class="icon-btn" title="Wisch-Vorschau"><svg><use href="#i-eye"/></svg></button>
     <button id="btnExport" class="primary"><svg><use href="#i-export"/></svg><span>Export</span></button>
@@ -80,6 +87,7 @@
     <button data-panel="text"    class="tool"><svg><use href="#i-text"/></svg><label>Text</label></button>
     <button data-panel="stickers"class="tool"><svg><use href="#i-sticker"/></svg><label>Sticker</label></button>
     <button data-panel="layout"  class="tool"><svg><use href="#i-magic"/></svg><label>Studio</label></button>
+    <button data-panel="video"   class="tool"><svg><use href="#i-video"/></svg><label>Video</label></button>
     <button data-panel="project" class="tool"><svg><use href="#i-folder"/></svg><label>Projekt</label></button>
   </nav>
 
@@ -105,6 +113,7 @@
         <button data-cat="aquarell" class="active">Aquarell</button>
         <button data-cat="textur">Textur</button>
         <button data-cat="muster">Muster</button>
+        <button data-cat="nahtlos">∞ Nahtlos</button>
         <button data-cat="look">✦ Looks</button>
         <button data-cat="eigene">Eigene</button>
       </div>
@@ -162,6 +171,21 @@
       <button id="autoShuffle" class="wide">🎲 Neue Variante würfeln</button>
       <div class="ctl"><span>Kantelung</span><input type="range" id="alTilt" min="0" max="8" value="3" step="0.5"></div>
       <div class="ctl"><span>Versatz</span><input type="range" id="alStagger" min="0" max="200" value="90"></div>
+      <h3>🖱 Auswahl</h3>
+      <div class="btnrow">
+        <button id="stLasso" class="chip-btn">✏️ Lasso</button>
+        <button id="stMulti" class="chip-btn">＋ Mehrere</button>
+      </div>
+      <div class="btnrow">
+        <button id="stGroup" class="chip-btn">🔗 Gruppieren</button>
+        <button id="stUngroup" class="chip-btn">⛓̸ Auflösen</button>
+      </div>
+      <h3>👁 Ansicht</h3>
+      <div class="btnrow">
+        <button id="stGuidesToggle" class="chip-btn">⊞ Schnittkanten</button>
+        <button id="stThemeToggle" class="chip-btn">◐ Hell/Dunkel</button>
+      </div>
+
       <h3>📐 Ausrichten <small>(gewähltes Element)</small></h3>
       <div class="btnrow">
         <button id="alignH" class="chip-btn">↔ Mittig H</button>
@@ -172,8 +196,84 @@
         <button id="distribute" class="chip-btn">⇹ Fotos verteilen</button>
         <button id="sameSize" class="chip-btn">⧉ Gleiche Größe</button>
       </div>
+      <h3>📐 Layout-Vorlagen</h3>
+      <div id="layoutGrid" class="grid tpl-grid"></div>
+      <h3>🎨 Farbpalette</h3>
+      <button id="palFromImage" class="wide">🎨 Farben aus dem Bild ziehen</button>
+      <div id="palPreview" class="pal-preview"></div>
       <h3>🎨 Vorlagen-Looks</h3>
       <div id="tplGrid" class="grid tpl-grid"></div>
+    </section>
+
+    <!-- VIDEO -->
+    <section class="panel" id="panel-video">
+      <h3>🎬 Video-Studio</h3>
+      <div class="vid-stage"><canvas id="vidPreview"></canvas></div>
+      <div class="vid-transport">
+        <button id="vidPlay" class="vid-play">▶ Abspielen</button>
+        <span id="vidTime" class="vid-time">0.0 / 8.0 s</span>
+      </div>
+      <input type="range" id="vidSeek" class="vid-seek" min="0" max="1000" value="0">
+
+      <h3>🎥 Kamera-Stil</h3>
+      <div id="vidStyles" class="chips"></div>
+      <p class="hint" id="vidStyleDesc"></p>
+      <div class="ctl" id="vidZoomRow"><span>Spotlight-Nähe</span><input type="range" id="vidZoom" min="100" max="260" value="150"></div>
+      <div class="ctl"><span>Dauer</span><input type="range" id="vidDur" min="3" max="30" step="1" value="8"><span id="vidDurL" class="val">8 s</span></div>
+      <div class="ctl"><span>Format</span>
+        <select id="vidOut">
+          <option value="auto">Wie Slide-Format</option>
+          <option value="9:16">Story / Reel 9:16</option>
+          <option value="1:1">Quadrat 1:1</option>
+          <option value="4:5">Feed 4:5</option>
+          <option value="16:9">Breitbild 16:9</option>
+        </select>
+      </div>
+      <div class="ctl"><span>Qualität</span>
+        <select id="vidQual"><option value="1">Standard (1080)</option><option value="2">2K – doppelt scharf</option></select>
+      </div>
+      <div class="ctl"><span>Kamera-Tempo</span><input type="range" id="vidSpeed" min="40" max="200" step="5" value="100"><span class="val" id="vidSpeedL">1,0×</span></div>
+      <div class="ctl"><span>Bewegung</span>
+        <select id="vidCurve">
+          <option value="soft">Weich (ein- und ausschwingen)</option>
+          <option value="linear">Gleichmäßig</option>
+          <option value="swing">Schwungvoll</option>
+        </select>
+      </div>
+
+      <h3>🎵 Musik <small>(lizenzfrei, im Gerät erzeugt)</small></h3>
+      <div class="ctl"><span>Video ohne Ton</span><input type="checkbox" id="vidMute"></div>
+      <div id="vidSounds" class="grid snd-grid"></div>
+      <label class="wide btn-like">📁 Eigene Musik laden (MP3/M4A)
+        <input type="file" id="vidMusicFile" accept="audio/*" class="file-overlay">
+      </label>
+      <div class="ctl"><span>Musik-Pegel</span><input type="range" id="vidMusicVol" min="0" max="100" value="55"></div>
+
+      <h3>🎙 Voiceover</h3>
+      <button id="vidRec" class="wide">● Aufnahme starten</button>
+      <p class="hint" id="vidRecState">Noch keine Aufnahme.</p>
+      <audio id="vidVoicePlay" class="vid-audio hidden" controls></audio>
+      <div class="ctl"><span>Stimme</span><input type="range" id="vidVoiceVol" min="0" max="150" value="100"></div>
+      <button id="vidVoiceDel" class="wide danger hidden">🗑 Aufnahme verwerfen</button>
+
+      <h3>🎞 Video verschönern</h3>
+      <label class="wide btn-like">📹 Eigenen Clip laden
+        <input type="file" id="vidClipFile" accept="video/*" class="file-overlay">
+      </label>
+      <div id="vidClipBox" class="hidden">
+        <p class="hint" id="vidClipName"></p>
+        <div class="ctl"><span>Start</span><input type="range" id="vidClipStart" min="0" max="1000" value="0"></div>
+        <div class="ctl"><span>Ende</span><input type="range" id="vidClipEnd" min="0" max="1000" value="1000"></div>
+        <p class="hint" id="vidClipTrim"></p>
+        <button id="vidClipDel" class="wide danger">✕ Clip entfernen</button>
+      </div>
+      <p class="hint">Der Clip liegt als Hintergrund auf der Leinwand – Text, Sticker, Animationen und eigene PNGs legst du wie gewohnt darüber.</p>
+
+      <hr>
+      <button id="vidExport" class="wide primary">⬇ Video exportieren</button>
+      <button id="vidShare" class="wide">📤 Video teilen → Instagram</button>
+      <div class="progress hidden" id="vidProgress"><div></div></div>
+      <p class="hint">Tipp: Animierte Elemente (Hüpfen, Herzschlag, Leuchten) bewegen sich nur im Video – der Bilder-Export bleibt gestochen scharf.</p>
     </section>
 
     <!-- PROJEKT -->
@@ -188,6 +288,19 @@
         <input type="file" id="projLoad" accept=".seamless,.json" class="file-overlay">
       </label>
       <button id="projNew" class="wide danger">🗑 Leinwand leeren</button>
+      <hr>
+      <h3>📌 Versionen</h3>
+      <div id="verList" class="ver-list"></div>
+      <hr>
+      <h3>🛟 Sicherung</h3>
+      <button id="backupAll" class="wide">📦 Alle Projekte als ZIP sichern</button>
+      <p class="hint" id="storageInfo"></p>
+      <hr>
+      <h3>⚙️ Einstellungen</h3>
+      <div class="ctl"><span>Leistungsmodus</span><input type="checkbox" id="perfToggle"></div>
+      <p class="hint">Pausiert Animationen auf der Leinwand – hilft bei vielen Elementen und älteren Geräten. Der Video-Export bleibt davon unberührt.</p>
+      <button id="btnTour" class="wide">🧭 Kurze Einführung noch einmal zeigen</button>
+      <button id="btnShortcuts" class="wide">⌨ Tastenkürzel anzeigen</button>
       <hr>
       <p class="hint">Seamless Studio läuft zu 100 % auf deinem Gerät. Fotos werden niemals hochgeladen.</p>
     </section>
@@ -207,6 +320,7 @@
         <label id="esAdd" class="primary big btnfile">📷 Fotos hinzufügen
           <input type="file" id="fileInput2" accept="image/*" multiple class="file-overlay">
         </label>
+        <button id="esExample" class="wide">✨ Beispiel-Carousel laden</button>
       </div>
     </div>
     <div id="zoomHud"><button id="zoomOut">−</button><span id="zoomLabel">100%</span><button id="zoomIn">+</button><button id="zoomFit">Einpassen</button></div>
@@ -236,16 +350,31 @@
     <div class="ctl"><span>Was?</span>
       <select id="expType">
         <option value="zip">🖼 Slides als Bilder (ZIP)</option>
+        <option value="pano">🖼 Nur Panorama (ein langes Bild)</option>
         <option value="video">🎬 Video mit Animation</option>
       </select>
     </div>
     <div id="expImgOpts">
       <div class="ctl"><span>Qualität</span>
-        <select id="expScale"><option value="1">Standard (1080er)</option><option value="2">2K – doppelt scharf</option></select>
+        <select id="expScale">
+          <option value="1">Standard (1080er)</option>
+          <option value="2">2K – doppelt scharf</option>
+          <option value="4">4K – maximal</option>
+        </select>
       </div>
-      <div class="ctl"><span>Format</span>
-        <select id="expFormat"><option value="jpeg">JPG (empfohlen)</option><option value="png">PNG</option></select>
+      <div class="ctl"><span>Dateityp</span>
+        <select id="expFormat">
+          <option value="jpeg">JPG (empfohlen)</option>
+          <option value="png">PNG (mit Transparenz)</option>
+          <option value="webp">WebP (klein)</option>
+        </select>
       </div>
+      <div class="ctl" id="expPanoRow"><span>Panorama mitliefern</span><input type="checkbox" id="expPano" checked></div>
+      <div id="expFormatsRow">
+        <div class="ctl"><span>Auch als</span></div>
+        <div class="chips" id="expFormats"></div>
+      </div>
+      <p class="hint" id="expInfo"></p>
     </div>
     <div id="expVidOpts" class="hidden">
       <div class="ctl"><span>Dauer</span>
@@ -256,7 +385,7 @@
     <div class="progress hidden" id="expProgress"><div></div></div>
     <div class="modal-btns">
       <button id="expCancel">Abbrechen</button>
-      <button id="expShare" class="hidden">📤 Teilen…</button>
+      <button id="expShare">📤 Teilen → Instagram</button>
       <button id="expGo" class="primary">⬇ Herunterladen</button>
     </div>
   </div>
@@ -265,11 +394,132 @@
 <!-- ======= SWIPE PREVIEW ======= -->
 <div id="previewDlg" class="modal hidden">
   <div class="preview-card">
-    <div class="preview-top"><span>So sieht dein Carousel aus — wische! 👉</span><button id="previewClose">✕</button></div>
+    <div class="preview-top">
+      <div class="chips" id="previewCrop">
+        <button data-crop="feed" class="sel">Feed 4:5</button>
+        <button data-crop="profile">Profil 3:4</button>
+      </div>
+      <button id="previewClose">✕</button>
+    </div>
     <div class="phone">
       <div class="phone-notch"></div>
-      <div id="previewTrack"></div>
+      <div class="ig-head"><span class="ig-av"></span><span class="ig-name">dein_account</span><span class="ig-dots">•••</span></div>
+      <div class="ig-media">
+        <div id="previewTrack"></div>
+        <span id="previewCounter" class="ig-counter">1/1</span>
+      </div>
+      <div class="ig-actions"><span>♡</span><span>💬</span><span>➤</span><span class="ig-save">🔖</span></div>
       <div id="previewDots"></div>
+      <div class="ig-caption"><b>dein_account</b> Deine Bildunterschrift kommt hier hin …</div>
+    </div>
+    <p class="hint" id="previewNote"></p>
+  </div>
+</div>
+
+<!-- ======= EBENEN & VERLAUF ======= -->
+<div id="layersPanel" class="hidden">
+  <div class="lp-head">
+    <span>🗂 Ebenen</span>
+    <div class="lp-tools">
+      <button id="lpGroup" title="Gruppieren (Strg+G)">🔗</button>
+      <button id="lpUngroup" title="Gruppierung auflösen">⛓̸</button>
+      <button id="lpAll" title="Alle auswählen (Strg+A)">▣</button>
+      <button id="lpClose" title="Schließen">✕</button>
+    </div>
+  </div>
+  <div id="lpList" class="lp-list"></div>
+  <div class="lp-head lp-sub"><span>🕘 Verlauf</span><button id="lpSnapshot" class="lp-snap">📌 Version sichern</button></div>
+  <div id="lpHistory" class="lp-history"></div>
+</div>
+
+<!-- ======= RASTER-MENÜ ======= -->
+<div id="gridMenu" class="hidden">
+  <div class="gm-title">Raster &amp; Hilfslinien</div>
+  <label><input type="checkbox" data-ov="thirds"> Drittelregel</label>
+  <label><input type="checkbox" data-ov="grid"> 4×4-Raster</label>
+  <label><input type="checkbox" data-ov="golden"> Goldener Schnitt</label>
+  <hr>
+  <label><input type="checkbox" data-ov="safe"> Story/Reel-Safe-Zone</label>
+  <label><input type="checkbox" data-ov="profile"> 3:4-Profilraster</label>
+  <p class="hint">Instagram zeigt Beiträge im Feed als 4:5, schneidet sie im Profil aber auf 3:4 zu.</p>
+</div>
+
+<!-- ======= TASTENKÜRZEL ======= -->
+<div id="shortcutsDlg" class="modal hidden">
+  <div class="modal-card">
+    <div class="sort-head"><h3>⌨ Tastenkürzel</h3><button id="scClose">✕</button></div>
+    <div class="sc-list" id="scList"></div>
+  </div>
+</div>
+
+<!-- ======= ZUSCHNITT ======= -->
+<div id="cropDlg" class="modal hidden">
+  <div class="modal-card cut-card">
+    <div class="sort-head"><h3>⧉ Zuschneiden</h3><button id="cropClose" title="Abbrechen">✕</button></div>
+    <div class="cut-stage"><canvas id="cropCanvas"></canvas></div>
+    <div class="chips" id="cropRatios"></div>
+    <div class="chips">
+      <button id="cropFill">⤢ Füllen</button>
+      <button id="cropFit">⤡ Einpassen</button>
+      <button id="cropRotL">⟲ 90°</button>
+      <button id="cropRotR">⟳ 90°</button>
+    </div>
+    <div class="ctl"><span>Begradigen</span><input type="range" id="cropStraight" min="-15" max="15" step="0.5" value="0"><span class="val" id="cropStraightL">0°</span></div>
+    <div class="modal-btns">
+      <button id="cropReset">↺ Zurücksetzen</button>
+      <button id="cropCancel">Abbrechen</button>
+      <button id="cropApply" class="primary">✓ Übernehmen</button>
+    </div>
+  </div>
+</div>
+
+<!-- ======= FREISTELLER ======= -->
+<div id="cutDlg" class="modal hidden">
+  <div class="modal-card cut-card">
+    <div class="sort-head">
+      <h3>✂️ Hintergrund entfernen</h3>
+      <button id="cutClose" title="Abbrechen">✕</button>
+    </div>
+    <div class="cut-stage"><canvas id="cutCanvas"></canvas></div>
+    <div class="chips cut-auto-row">
+      <button id="cutAuto" class="sel">🪄 Auto ✓</button>
+    </div>
+    <div class="chips" id="cutTools">
+      <button data-tool="none" class="sel">🖐 Ansehen</button>
+      <button data-tool="color">💧 Farbe wählen</button>
+      <button data-tool="erase">🧽 Radieren</button>
+      <button data-tool="restore">↩ Zurückholen</button>
+    </div>
+    <p class="hint" id="cutHint"></p>
+    <div class="ctl"><span>Toleranz</span><input type="range" id="cutTol" min="6" max="130" value="42"></div>
+    <div class="ctl"><span>Weiche Kante</span><input type="range" id="cutFeather" min="0" max="8" step="0.5" value="2"></div>
+    <div class="ctl"><span>Rand kürzen</span><input type="range" id="cutTrim" min="0" max="6" value="1"></div>
+    <div class="ctl hidden" id="cutBrushRow"><span>Pinselgröße</span><input type="range" id="cutBrush" min="8" max="140" value="34"></div>
+    <div class="modal-btns">
+      <button id="cutReset">↺ Zurücksetzen</button>
+      <button id="cutCancel">Abbrechen</button>
+      <button id="cutApply" class="primary">✓ Übernehmen</button>
+    </div>
+  </div>
+</div>
+
+<!-- ======= FOTO-SORTIERUNG ======= -->
+<div id="sortDlg" class="modal hidden">
+  <div class="modal-card sort-card">
+    <div class="sort-head">
+      <h3>Reihenfolge festlegen</h3>
+      <button id="sortClose" title="Abbrechen">✕</button>
+    </div>
+    <p class="hint"><b id="sortCount"></b> · Kacheln ziehen oder mit ← → verschieben</p>
+    <div id="sortGrid" class="sort-grid"></div>
+    <div class="btnrow">
+      <button id="sortReverse" class="chip-btn">⇄ Umkehren</button>
+      <button id="sortShuffleBtn" class="chip-btn">🎲 Mischen</button>
+    </div>
+    <div class="modal-btns">
+      <button id="sortCancel">Nur einfügen</button>
+      <button id="sortAuto">Automatisch</button>
+      <button id="sortApply" class="primary">In dieser Reihenfolge</button>
     </div>
   </div>
 </div>
@@ -281,9 +531,18 @@
 <script src="backgrounds.js"></script>
 <script src="frames.js"></script>
 <script src="stickers.js"></script>
+<script src="anim.js"></script>
 <script src="render.js"></script>
 <script src="interact.js"></script>
+<script src="clip.js"></script>
+<script src="sortdlg.js"></script>
+<script src="cutout.js"></script>
+<script src="crop.js"></script>
 <script src="ui.js"></script>
+<script src="layers.js"></script>
+<script src="extras.js"></script>
+<script src="audio.js"></script>
+<script src="video.js"></script>
 <script src="exporter.js"></script>
 <script src="main.js"></script>
 </body>

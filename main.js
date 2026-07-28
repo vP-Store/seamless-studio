@@ -19,6 +19,19 @@
   Promise.all(loads).then(() => { SS.requestRender(); setTimeout(hideSplash, 350); });
   setTimeout(hideSplash, 3500);   // never hang on the splash
 
+  // Dialoge verdrahten
+  if (SS.cutout && SS.cutout.initUI) SS.cutout.initUI();
+  if (SS.crop && SS.crop.initUI) SS.crop.initUI();
+
+  // dauerhaften Speicher anfordern, sobald der Nutzer das erste Mal etwas tut
+  const askPersist = () => {
+    SS.persistStorage();
+    window.removeEventListener('pointerdown', askPersist);
+    window.removeEventListener('keydown', askPersist);
+  };
+  window.addEventListener('pointerdown', askPersist);
+  window.addEventListener('keydown', askPersist);
+
   // initial view
   SS.ui.syncTop();
   SS.ui.zoomFit();
@@ -28,12 +41,15 @@
 
   // live animation loop: only renders while animated stickers exist
   (function tick() {
-    if (SS.hasAnimation && SS.hasAnimation() && !document.hidden) {
+    if (SS.hasAnimation && SS.hasAnimation() && !document.hidden && !SS.state.perfMode) {
       SS.animT = performance.now() / 1000;
       SS.render();
     }
     requestAnimationFrame(tick);
   })();
+
+  // kurze Einführung beim allerersten Start
+  SS.ui.maybeTour && SS.ui.maybeTour();
 
   // PWA service worker
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
@@ -48,11 +64,11 @@
     SS.toast('💡 Tipp: Seamless Studio lässt sich als App installieren (Menü → „Zum Startbildschirm hinzufügen")', 5000);
   });
 
-  // haptic feedback on snapping (Android)
-  SS.buzz = () => { try { if (navigator.vibrate) navigator.vibrate(8); } catch (e) {} };
-
   // prevent accidental navigation loss
   window.addEventListener('beforeunload', (e) => {
     if (SS.state.elements.length > 0) { e.preventDefault(); e.returnValue = ''; }
   });
+
+  // Display beim Verlassen wieder freigeben
+  window.addEventListener('pagehide', () => SS.wakeOff());
 })();

@@ -440,3 +440,202 @@ SS.paintBackground = function (ctx, W, H, forExport) {
   if (!forExport) { _bgCache = cv; _bgKey = key; }
   ctx.drawImage(cv, 0, 0);
 };
+
+
+/* ================================================================
+   Nahtlose Panorama-Hintergründe (v4)
+   Diese Motive sind bewusst über die GESAMTE Panoramabreite gezeichnet –
+   sie kacheln nicht pro Slide und haben deshalb an den Schnittkanten
+   keinerlei Bruch. Genau das hält ein Seamless-Carousel zusammen.
+   ================================================================ */
+(function () {
+  const R = mulberry;
+
+  function sky(c, W, H, stops) {
+    const g = c.createLinearGradient(0, 0, 0, H);
+    stops.forEach(([p, col]) => g.addColorStop(p, col));
+    c.fillStyle = g; c.fillRect(0, 0, W, H);
+  }
+  function sweep(c, W, H, cols) {
+    const g = c.createLinearGradient(0, 0, W, 0);
+    cols.forEach((col, i) => g.addColorStop(i / (cols.length - 1), col));
+    c.fillStyle = g; c.fillRect(0, 0, W, H);
+  }
+  function band(c, W, H, yFn, thick, col, alpha) {
+    c.save(); c.globalAlpha = alpha === undefined ? 1 : alpha;
+    c.fillStyle = col;
+    c.beginPath();
+    c.moveTo(0, yFn(0));
+    for (let x = 0; x <= W; x += Math.max(4, W / 420)) c.lineTo(x, yFn(x));
+    c.lineTo(W, yFn(W) + thick);
+    for (let x = W; x >= 0; x -= Math.max(4, W / 420)) c.lineTo(x, yFn(x) + thick);
+    c.closePath(); c.fill();
+    c.restore();
+  }
+
+  const LIB = [
+    { id: 'sonnenaufgang', name: 'Sonnenaufgang', paint: (c, W, H) => {
+        sky(c, W, H, [[0, '#f7d9c4'], [0.45, '#f3c3a8'], [1, '#e7a184']]);
+        const g = c.createRadialGradient(W * 0.28, H * 0.72, 0, W * 0.28, H * 0.72, H * 1.05);
+        g.addColorStop(0, 'rgba(255,236,190,.95)'); g.addColorStop(1, 'rgba(255,236,190,0)');
+        c.fillStyle = g; c.fillRect(0, 0, W, H);
+        paintGrain(c, W, H, 0.03, 11);
+      } },
+
+    { id: 'daemmerung', name: 'Dämmerung', paint: (c, W, H) => {
+        sweep(c, W, H, ['#2b2740', '#4a3d5c', '#7d5b6b', '#c98a83', '#f0b394']);
+        const r = R(4);
+        c.fillStyle = 'rgba(255,255,255,.7)';
+        for (let i = 0; i < 120; i++) {
+          const x = r() * W, y = r() * H * 0.55;
+          c.globalAlpha = 0.15 + r() * 0.55;
+          c.beginPath(); c.arc(x, y, 0.8 + r() * 1.9, 0, 7); c.fill();
+        }
+        c.globalAlpha = 1;
+      } },
+
+    { id: 'aquarellwelle', name: 'Aquarell-Welle', paint: (c, W, H) => {
+        c.fillStyle = '#fbf3ee'; c.fillRect(0, 0, W, H);
+        const cols = ['#f0cfc6', '#e6b6b0', '#d9a2a6', '#c9909d'];
+        cols.forEach((col, i) => {
+          band(c, W, H, (x) => H * (0.42 + i * 0.11) + Math.sin(x / W * Math.PI * 3 + i) * H * 0.09,
+            H * 0.30, col, 0.42);
+        });
+        paintGrain(c, W, H, 0.035, 21);
+      } },
+
+    { id: 'goldband', name: 'Goldband', paint: (c, W, H) => {
+        sky(c, W, H, [[0, '#1e1a17'], [1, '#2c2520']]);
+        [[0.36, 6, 0.9], [0.5, 3, 0.5], [0.64, 4, 0.65]].forEach(([f, t, a], i) => {
+          band(c, W, H, (x) => H * f + Math.sin(x / W * Math.PI * (2 + i) + i * 1.3) * H * 0.12,
+            H * t / 100, '#c9a15f', a);
+        });
+        const r = R(9);
+        c.fillStyle = '#f2dfae';
+        for (let i = 0; i < 90; i++) {
+          c.globalAlpha = 0.2 + r() * 0.6;
+          c.beginPath(); c.arc(r() * W, r() * H, 0.9 + r() * 2.2, 0, 7); c.fill();
+        }
+        c.globalAlpha = 1;
+      } },
+
+    { id: 'bergkette', name: 'Bergkette', paint: (c, W, H) => {
+        sky(c, W, H, [[0, '#e8e3dc'], [1, '#cdd6d2']]);
+        const layers = [['#a8b5ae', 0.62, 5], ['#8b9c97', 0.72, 3.5], ['#6d7d7c', 0.82, 2.2]];
+        layers.forEach(([col, base, freq], li) => {
+          c.fillStyle = col;
+          c.beginPath(); c.moveTo(0, H);
+          for (let x = 0; x <= W; x += Math.max(3, W / 600)) {
+            const t = x / W * Math.PI * freq + li;
+            const y = H * base - Math.abs(Math.sin(t)) * H * 0.22 - Math.sin(t * 2.7 + li) * H * 0.05;
+            c.lineTo(x, y);
+          }
+          c.lineTo(W, H); c.closePath(); c.fill();
+        });
+      } },
+
+    { id: 'huegel', name: 'Sanfte Hügel', paint: (c, W, H) => {
+        sky(c, W, H, [[0, '#fdf4e6'], [1, '#f6e2cf']]);
+        [['#f1d3b8', 0.68, 2], ['#e6bb9c', 0.78, 3], ['#d8a180', 0.88, 4]].forEach(([col, b, f], i) => {
+          c.fillStyle = col;
+          c.beginPath(); c.moveTo(0, H);
+          for (let x = 0; x <= W; x += Math.max(3, W / 500))
+            c.lineTo(x, H * b + Math.sin(x / W * Math.PI * f + i * 1.7) * H * 0.1);
+          c.lineTo(W, H); c.closePath(); c.fill();
+        });
+        paintGrain(c, W, H, 0.03, 33);
+      } },
+
+    { id: 'pastellbogen', name: 'Pastellbogen', paint: (c, W, H) => {
+        sweep(c, W, H, ['#f6dfe6', '#e7dcf1', '#d8e7f2', '#dcf0e6', '#f6efd9']);
+        c.save(); c.globalAlpha = 0.35;
+        for (let i = 0; i < 5; i++) {
+          band(c, W, H, (x) => H * (0.2 + i * 0.15) + Math.sin(x / W * Math.PI * 2 + i * 0.8) * H * 0.07,
+            H * 0.05, '#ffffff', 0.5);
+        }
+        c.restore();
+        paintGrain(c, W, H, 0.025, 45);
+      } },
+
+    { id: 'diagonalen', name: 'Diagonalen', paint: (c, W, H) => {
+        c.fillStyle = '#f7f1ea'; c.fillRect(0, 0, W, H);
+        c.strokeStyle = 'rgba(191,155,108,.28)';
+        c.lineWidth = Math.max(2, H * 0.006);
+        const step = H * 0.09;
+        for (let x = -H; x < W + H; x += step) {
+          c.beginPath(); c.moveTo(x, H); c.lineTo(x + H, 0); c.stroke();
+        }
+      } },
+
+    { id: 'konfettibogen', name: 'Konfetti-Bogen', paint: (c, W, H) => {
+        sky(c, W, H, [[0, '#fffaf3'], [1, '#fdeee2']]);
+        const r = R(77);
+        const cols = ['#d68a96', '#d4af7e', '#9db8ae', '#a99bc4', '#e8a9b4'];
+        for (let i = 0; i < 420; i++) {
+          const t = i / 420;
+          const x = t * W + (r() - 0.5) * W * 0.02;
+          const y = H * 0.5 + Math.sin(t * Math.PI * 2.2) * H * 0.26 + (r() - 0.5) * H * 0.22;
+          c.fillStyle = cols[i % cols.length];
+          c.globalAlpha = 0.35 + r() * 0.5;
+          c.save(); c.translate(x, y); c.rotate(r() * 6.3);
+          const w = H * (0.006 + r() * 0.012);
+          c.fillRect(-w, -w * 2.2, w * 2, w * 4.4);
+          c.restore();
+        }
+        c.globalAlpha = 1;
+      } },
+
+    { id: 'ranke', name: 'Blätterranke', paint: (c, W, H) => {
+        c.fillStyle = '#f6f3ec'; c.fillRect(0, 0, W, H);
+        const r = R(13);
+        const yAt = (x) => H * 0.5 + Math.sin(x / W * Math.PI * 3.4) * H * 0.2;
+        c.strokeStyle = '#9aab8e'; c.lineWidth = Math.max(1.4, H * 0.003);
+        c.beginPath();
+        for (let x = 0; x <= W; x += 4) x === 0 ? c.moveTo(x, yAt(x)) : c.lineTo(x, yAt(x));
+        c.stroke();
+        for (let x = 0; x < W; x += H * 0.05) {
+          const y = yAt(x);
+          const up = r() > 0.5 ? -1 : 1;
+          c.save(); c.translate(x, y); c.rotate(up * (0.5 + r() * 0.6));
+          c.fillStyle = `rgba(140,163,128,${0.35 + r() * 0.4})`;
+          c.beginPath();
+          c.ellipse(0, -H * 0.028, H * 0.011, H * 0.03, 0, 0, 7);
+          c.fill(); c.restore();
+        }
+      } },
+
+    { id: 'wolkenband', name: 'Wolkenband', paint: (c, W, H) => {
+        sky(c, W, H, [[0, '#cfe0ef'], [0.6, '#e8eef5'], [1, '#f7f2ec']]);
+        const r = R(55);
+        for (let i = 0; i < 90; i++) {
+          const x = (i / 90) * W + (r() - 0.5) * W * 0.03;
+          const y = H * (0.3 + Math.sin(i * 0.3) * 0.12) + (r() - 0.5) * H * 0.1;
+          const s = H * (0.05 + r() * 0.09);
+          c.fillStyle = `rgba(255,255,255,${0.25 + r() * 0.4})`;
+          c.beginPath();
+          c.arc(x, y, s, 0, 7);
+          c.arc(x + s * 0.8, y + s * 0.15, s * 0.75, 0, 7);
+          c.arc(x - s * 0.8, y + s * 0.2, s * 0.65, 0, 7);
+          c.fill();
+        }
+      } },
+
+    { id: 'milchstrasse', name: 'Milchstraße', paint: (c, W, H) => {
+        sky(c, W, H, [[0, '#0d1224'], [0.55, '#1a2240'], [1, '#2a2540']]);
+        const r = R(101);
+        // Band quer über das ganze Panorama
+        for (let i = 0; i < 2600; i++) {
+          const t = r();
+          const x = t * W;
+          const spread = H * 0.16 * (0.5 + Math.sin(t * Math.PI * 1.6) * 0.5 + 0.4);
+          const y = H * 0.48 + Math.sin(t * Math.PI * 1.6) * H * 0.16 + (r() - 0.5) * spread;
+          c.fillStyle = ['#ffffff', '#ffe9c4', '#cfe0ff'][i % 3];
+          c.globalAlpha = 0.12 + r() * 0.7;
+          c.beginPath(); c.arc(x, y, 0.5 + r() * 1.6, 0, 7); c.fill();
+        }
+        c.globalAlpha = 1;
+      } },
+  ];
+
+  LIB.forEach(d => SS.BG_LIB.push({ id: 'sl-' + d.id, cat: 'nahtlos', name: d.name, paint: d.paint }));
+})();

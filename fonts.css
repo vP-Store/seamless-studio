@@ -36,3 +36,117 @@
 @font-face { font-family: 'Special Elite'; src: url('special-elite-latin-400-normal.woff2') format('woff2'); font-weight: 400 700; font-style: normal; font-display: swap; }
 @font-face { font-family: 'Marcellus'; src: url('marcellus-latin-400-normal.woff2') format('woff2'); font-weight: 400 700; font-style: normal; font-display: swap; }
 @font-face { font-family: 'Italiana'; src: url('italiana-latin-400-normal.woff2') format('woff2'); font-weight: 400 700; font-style: normal; font-display: swap; }
+
+/* ===== Neu in v4: Script- und Display-Schriften ===== */
+@font-face {
+  font-family: 'Alex Brush';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('alex-brush-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Allura';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('allura-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Tangerine';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('tangerine-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Petit Formal Script';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('petit-formal-script-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Mrs Saint Delafield';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('mrs-saint-delafield-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Yellowtail';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('yellowtail-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Cookie';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('cookie-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'La Belle Aurore';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('la-belle-aurore-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Cormorant Upright';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('cormorant-upright-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Gilda Display';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('gilda-display-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Prata';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('prata-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Bodoni Moda';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('bodoni-moda-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Julius Sans One';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('julius-sans-one-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Tenor Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('tenor-sans-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Forum';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('forum-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Philosopher';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('philosopher-latin-400-normal.woff2') format('woff2');
+}

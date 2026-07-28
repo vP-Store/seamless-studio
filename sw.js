@@ -1,5 +1,5 @@
 /* Seamless Studio – Service Worker (offline cache) */
-const VERSION = 'ss-v2.0.0';
+const VERSION = 'ss-v4.0.0';
 const ASSETS = [
   './',
   './index.html',
@@ -11,9 +11,18 @@ const ASSETS = [
   './backgrounds.js',
   './frames.js',
   './stickers.js',
+  './anim.js',
   './render.js',
   './interact.js',
+  './clip.js',
+  './sortdlg.js',
+  './cutout.js',
+  './crop.js',
+  './layers.js',
+  './extras.js',
   './ui.js',
+  './audio.js',
+  './video.js',
   './exporter.js',
   './main.js',
   './icon-192.png',
@@ -56,7 +65,23 @@ const ASSETS = [
   './kalam-latin-400-normal.woff2',
   './special-elite-latin-400-normal.woff2',
   './marcellus-latin-400-normal.woff2',
-  './italiana-latin-400-normal.woff2'
+  './italiana-latin-400-normal.woff2',
+  './alex-brush-latin-400-normal.woff2',
+  './allura-latin-400-normal.woff2',
+  './tangerine-latin-400-normal.woff2',
+  './petit-formal-script-latin-400-normal.woff2',
+  './mrs-saint-delafield-latin-400-normal.woff2',
+  './yellowtail-latin-400-normal.woff2',
+  './cookie-latin-400-normal.woff2',
+  './la-belle-aurore-latin-400-normal.woff2',
+  './cormorant-upright-latin-400-normal.woff2',
+  './gilda-display-latin-400-normal.woff2',
+  './prata-latin-400-normal.woff2',
+  './bodoni-moda-latin-400-normal.woff2',
+  './julius-sans-one-latin-400-normal.woff2',
+  './tenor-sans-latin-400-normal.woff2',
+  './forum-latin-400-normal.woff2',
+  './philosopher-latin-400-normal.woff2'
 ];
 
 self.addEventListener('install', (e) => {

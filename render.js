@@ -22,6 +22,60 @@ SS.defaultFilter = () => ({ preset: 'original', brightness: 100, contrast: 100, 
 const _photoCache = {}; // el.id -> {key, canvas}
 SS.photoCacheClear = (id) => { if (id) delete _photoCache[id]; else Object.keys(_photoCache).forEach(k => delete _photoCache[k]); };
 
+/* Quellbild zuschneiden: 90°-Drehung, Rechteck, Begradigen.
+   Fällt auf den alten Zoom/Versatz-Zuschnitt zurück, wenn kein Rechteck gesetzt ist. */
+SS.cropSource = function (rec, cr) {
+  let img = rec.img, iw = rec.w, ih = rec.h;
+
+  // 1) Vielfache von 90°
+  const q = ((cr.rot90 || 0) % 360 + 360) % 360;
+  if (q) {
+    const swap = q === 90 || q === 270;
+    const cv = SS.makeCanvas(swap ? ih : iw, swap ? iw : ih);
+    const c = cv.getContext('2d');
+    c.translate(cv.width / 2, cv.height / 2);
+    c.rotate(SS.deg2rad(q));
+    c.drawImage(img, -iw / 2, -ih / 2);
+    img = cv; iw = cv.width; ih = cv.height;
+  }
+
+  // 2) Rechteck (mit Begradigung)
+  if (cr.rect) {
+    const r = cr.rect;
+    const w = Math.max(8, Math.round(r.w)), h = Math.max(8, Math.round(r.h));
+    const ang = SS.deg2rad(cr.angle || 0);
+    if (!ang) {
+      const cv = SS.makeCanvas(w, h);
+      cv.getContext('2d').drawImage(img, r.x, r.y, r.w, r.h, 0, 0, w, h);
+      return { canvas: cv, w, h };
+    }
+    const co = Math.abs(Math.cos(ang)), si = Math.abs(Math.sin(ang));
+    const bw = Math.ceil(w * co + h * si), bh = Math.ceil(w * si + h * co);
+    const tmp = SS.makeCanvas(bw, bh);
+    const tc = tmp.getContext('2d');
+    tc.translate(bw / 2, bh / 2);
+    tc.drawImage(img, -(r.x + r.w / 2), -(r.y + r.h / 2));
+    const out = SS.makeCanvas(w, h);
+    const oc = out.getContext('2d');
+    oc.translate(w / 2, h / 2);
+    oc.rotate(-ang);
+    oc.drawImage(tmp, -bw / 2, -bh / 2);
+    SS.freeCanvas(tmp);
+    return { canvas: out, w, h };
+  }
+
+  // 3) alter Zoom-/Versatz-Zuschnitt
+  if (cr.zoom > 1.001) {
+    const vw = iw / cr.zoom, vh = ih / cr.zoom;
+    const sx = (iw - vw) / 2 * (1 + SS.clamp(cr.ox, -1, 1));
+    const sy = (ih - vh) / 2 * (1 + SS.clamp(cr.oy, -1, 1));
+    const cv = SS.makeCanvas(vw, vh);
+    cv.getContext('2d').drawImage(img, sx, sy, vw, vh, 0, 0, cv.width, cv.height);
+    return { canvas: cv, w: cv.width, h: cv.height };
+  }
+  return { canvas: img, w: iw, h: ih };
+};
+
 SS.filteredPhoto = function (el) {
   const rec = SS.images[el.imgId];
   if (!rec) return null;
@@ -31,17 +85,8 @@ SS.filteredPhoto = function (el) {
   const hit = _photoCache[el.id];
   if (hit && hit.key === key) return hit.canvas;
 
-  // crop: zoom into the photo, offsets shift the visible window
-  let srcImg = rec.img, sw = rec.w, sh = rec.h;
-  if (cr.zoom > 1.001) {
-    const vw = rec.w / cr.zoom, vh = rec.h / cr.zoom;
-    const sx = (rec.w - vw) / 2 * (1 + SS.clamp(cr.ox, -1, 1));
-    const sy = (rec.h - vh) / 2 * (1 + SS.clamp(cr.oy, -1, 1));
-    const cc = document.createElement('canvas');
-    cc.width = Math.round(vw); cc.height = Math.round(vh);
-    cc.getContext('2d').drawImage(rec.img, sx, sy, vw, vh, 0, 0, cc.width, cc.height);
-    srcImg = cc; sw = cc.width; sh = cc.height;
-  }
+  const src = SS.cropSource(rec, cr);
+  let srcImg = src.canvas, sw = src.w, sh = src.h;
 
   const cv = document.createElement('canvas');
   cv.width = sw; cv.height = sh;
@@ -107,8 +152,8 @@ SS.photoCard = function (el) {
   return cv;
 };
 
-/* ---------- element size helper ---------- */
-SS.elSize = function (el) {
+/* ---------- element size helper (inklusive freier Verzerrung) ---------- */
+SS.elSizeRaw = function (el) {
   if (el.type === 'photo') {
     const card = SS.photoCard(el);
     return card ? { w: card.width, h: card.height } : { w: 100, h: 100 };
@@ -124,6 +169,52 @@ SS.elSize = function (el) {
   }
   if (el.type === 'blur') return { w: el.w, h: el.h };
   return { w: 100, h: 100 };
+};
+SS.elSize = function (el) {
+  const r = SS.elSizeRaw(el);
+  return { w: r.w * (el.scaleX || 1), h: r.h * (el.scaleY || 1) };
+};
+
+/* Gemeinsame, achsenparallele Hülle einer Elementliste */
+SS.boundsOf = function (list) {
+  if (!list || !list.length) return null;
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const el of list) {
+    const { w, h } = SS.elSize(el);
+    const r = SS.deg2rad(el.rot || 0);
+    const co = Math.cos(r), si = Math.sin(r);
+    for (const [dx, dy] of [[-w / 2, -h / 2], [w / 2, -h / 2], [w / 2, h / 2], [-w / 2, h / 2]]) {
+      const px = el.x + dx * co - dy * si;
+      const py = el.y + dx * si + dy * co;
+      if (px < x0) x0 = px; if (px > x1) x1 = px;
+      if (py < y0) y0 = py; if (py > y1) y1 = py;
+    }
+  }
+  return { x0, y0, x1, y1, cx: (x0 + x1) / 2, cy: (y0 + y1) / 2, w: x1 - x0, h: y1 - y0 };
+};
+SS.selBounds = () => SS.boundsOf(SS.getSelAll());
+
+/* ---------- Textmodell: Füllung, Kontur, Schatten und Glow sind unabhängig ---------- */
+SS.normalizeText = function (el) {
+  if (el.fill === undefined) {
+    const e = el.effect || 'none';
+    if (e === 'kontur') { el.fill = 'none'; el.hollow = true; el.outline = true; el.outlineColor = el.outlineColor || el.color; }
+    else if (e === 'neon') { el.fill = 'neon'; el.glow = true; el.glowColor = el.glowColor || el.color; }
+    else el.fill = (e === 'gold' || e === '3d') ? e : 'none';
+  }
+  if (el.hollow === undefined) el.hollow = false;
+  if (el.outline === undefined) el.outline = false;
+  if (el.outlineColor === undefined) el.outlineColor = '#ffffff';
+  if (el.outlineWidth === undefined) el.outlineWidth = 8;      // Prozent der Schriftgröße
+  if (el.shadow === undefined) el.shadow = false;
+  if (el.shadowColor === undefined) el.shadowColor = '#1e0f08';
+  if (el.shadowBlur === undefined) el.shadowBlur = 18;         // Prozent
+  if (el.shadowX === undefined) el.shadowX = 0;
+  if (el.shadowY === undefined) el.shadowY = 5;
+  if (el.glow === undefined) el.glow = false;
+  if (el.glowColor === undefined) el.glowColor = el.color || '#ffd9a0';
+  if (el.glowStrength === undefined) el.glowStrength = 45;     // Prozent
+  return el;
 };
 
 /* ---------- text measuring & drawing ---------- */
@@ -277,42 +368,89 @@ function mulbT(seed) {
   };
 }
 
-/* draw one line, honoring text effects */
-function drawStyledLine(c, el, ln, x, y) {
-  const eff = el.effect || 'none';
-  if (eff === 'gold') {
+/* ---------- Glow-Helfer für die Animations-Engine ---------- */
+/* Zeichnet erst einen weichen Schein, dann die Form selbst. */
+SS.paintWithGlow = function (c, glow, paint) {
+  if (glow && glow.blur > 0.5) {
+    c.save();
+    c.shadowColor = glow.color;
+    c.shadowBlur = glow.blur;
+    c.save(); paint(); c.restore();
+    if (glow.power > 0.45) { c.save(); paint(); c.restore(); }   // kräftiger Schein
+    c.restore();
+  }
+  c.save(); paint(); c.restore();
+};
+
+let _textGlow = null;   // Leucht-Schein aus der Animation (überlagert den festen Glow)
+
+/* Kontur und Füllung – ohne Schatten und ohne Glow */
+function paintGlyph(c, el, ln, x, y) {
+  const fill = el.fill || 'none';
+  if (el.outline) {
+    c.save();
+    c.strokeStyle = el.outlineColor || '#ffffff';
+    c.lineWidth = Math.max(1, el.size * (el.outlineWidth === undefined ? 8 : el.outlineWidth) / 100);
+    c.lineJoin = 'round'; c.miterLimit = 2;
+    c.strokeText(ln, x, y);
+    c.restore();
+  }
+  if (el.hollow) return;
+  if (fill === 'gold') {
     const w = Math.max(10, c.measureText(ln).width);
     const g = c.createLinearGradient(x - w / 2, y - el.size / 2, x + w / 2, y + el.size / 2);
     ['#8c6a2f', '#e8cf96', '#c9a15f', '#f6e7b8', '#a37d3d'].forEach((col, i) => g.addColorStop(i / 4, col));
     c.fillStyle = g;
     c.fillText(ln, x, y);
-  } else if (eff === 'neon') {
+  } else if (fill === 'neon') {
+    c.fillStyle = el.color; c.fillText(ln, x, y);
     c.save();
-    c.shadowColor = el.color; c.shadowBlur = el.size * 0.55;
-    c.fillStyle = el.color; c.fillText(ln, x, y); c.fillText(ln, x, y);
-    c.shadowBlur = el.size * 0.2;
+    c.shadowColor = el.color; c.shadowBlur = el.size * 0.18;
     c.fillStyle = '#ffffff'; c.fillText(ln, x, y);
     c.restore();
-  } else if (eff === '3d') {
+  } else if (fill === '3d') {
     c.fillStyle = shadeHex(el.color, -70);
     const off = Math.max(2, el.size * 0.045);
     c.fillText(ln, x + off, y + off);
     c.fillText(ln, x + off * 0.6, y + off * 0.6);
     c.fillStyle = el.color;
     c.fillText(ln, x, y);
-  } else if (eff === 'kontur') {
-    c.strokeStyle = el.color;
-    c.lineWidth = Math.max(1.5, el.size * 0.05);
-    c.strokeText(ln, x, y);
   } else {
-    if (el.outline) {
-      c.strokeStyle = el.outlineColor || '#ffffff';
-      c.lineWidth = el.size * 0.08;
-      c.strokeText(ln, x, y);
-    }
     c.fillStyle = el.color;
     c.fillText(ln, x, y);
   }
+}
+
+/* Welcher Schein gilt gerade? Animation schlägt die feste Einstellung. */
+function glowSpec(el) {
+  if (_textGlow) return _textGlow;
+  if (el.glow) {
+    const p = (el.glowStrength === undefined ? 45 : el.glowStrength) / 100;
+    return { color: el.glowColor || el.color, blur: Math.max(2, el.size * 0.5 * p), power: p };
+  }
+  return null;
+}
+
+/* Eine Zeile zeichnen: Schatten → Glow → Kontur/Füllung */
+function drawStyledLine(c, el, ln, x, y) {
+  if (el.shadow) {
+    c.save();
+    c.shadowColor = el.shadowColor || 'rgba(30,15,8,.55)';
+    c.shadowBlur = el.size * (el.shadowBlur === undefined ? 18 : el.shadowBlur) / 100;
+    c.shadowOffsetX = el.size * (el.shadowX || 0) / 100;
+    c.shadowOffsetY = el.size * (el.shadowY === undefined ? 5 : el.shadowY) / 100;
+    paintGlyph(c, el, ln, x, y);
+    c.restore();
+  }
+  const g = glowSpec(el);
+  if (g && g.blur > 0.5) {
+    c.save();
+    c.shadowColor = g.color; c.shadowBlur = g.blur;
+    paintGlyph(c, el, ln, x, y);
+    if (g.power > 0.45) paintGlyph(c, el, ln, x, y);
+    c.restore();
+  }
+  paintGlyph(c, el, ln, x, y);
 }
 
 /* curved single line (per-char along an arc) */
@@ -348,6 +486,10 @@ SS.drawTextEl = function (c, el) {
   c.translate(el.x, el.y);
   c.rotate(SS.deg2rad(el.rot));
   c.globalAlpha = el.opacity ?? 1;
+  // Animation (Hüpfen, Herzschlag, Leuchten …) – Glow wirkt nur auf die Buchstaben
+  _textGlow = SS.applyAnim ? SS.applyAnim(c, el, Math.max(m.h, el.size)) : null;
+  if (_textGlow) _textGlow.color = el.animGlowColor || el.glowColor || el.color;
+  if ((el.scaleX || 1) !== 1 || (el.scaleY || 1) !== 1) c.scale(el.scaleX || 1, el.scaleY || 1);
 
   c.font = SS.fontCSS(el);
   c.textBaseline = 'middle';
@@ -356,10 +498,6 @@ SS.drawTextEl = function (c, el) {
 
   paintTextBg(c, el, m, lineWidths);
 
-  if (el.shadow) {
-    c.shadowColor = 'rgba(30,15,8,.45)';
-    c.shadowBlur = el.size * 0.18; c.shadowOffsetY = el.size * 0.05;
-  }
   const innerW = m.w - m.padX * 2;
   lines.forEach((ln, i) => {
     let x;
@@ -371,85 +509,117 @@ SS.drawTextEl = function (c, el) {
     else drawStyledLine(c, el, ln, x, y);
   });
   if (el.letterSpacing) c.letterSpacing = '0px';
+  _textGlow = null;
   c.restore();
 };
 
-/* ---------- sticker drawing (with animation) ---------- */
-SS.animT = 0;   // seconds; advanced by the animation loop / video export
+/* ---------- sticker / emoji drawing (animation via anim.js) ---------- */
+SS.animT = 0;   // Sekunden; wird von der Live-Schleife bzw. vom Video-Export gesetzt
 SS.drawStickerEl = function (c, el) {
   c.save();
   c.translate(el.x, el.y);
   c.rotate(SS.deg2rad(el.rot));
   c.globalAlpha = el.opacity ?? 1;
-  const anim = el.anim || 'none';
-  if (anim !== 'none') {
-    const t = SS.animT + (el.id.length % 7) * 0.4;   // phase offset per element
-    if (anim === 'pulse') {
-      const s = 1 + 0.09 * Math.sin(t * 4.2);
-      c.scale(s, s);
-    } else if (anim === 'twinkle') {
-      c.globalAlpha *= 0.62 + 0.38 * (0.5 + 0.5 * Math.sin(t * 5));
-      const s = 1 + 0.06 * Math.sin(t * 5);
-      c.scale(s, s);
-    } else if (anim === 'float') {
-      c.translate(0, Math.sin(t * 1.8) * el.s * 0.05);
-      c.rotate(Math.sin(t * 1.2) * 0.05);
-    } else if (anim === 'spin') {
-      c.rotate(t * 0.8);
-    } else if (anim === 'wobble') {
-      c.rotate(Math.sin(t * 6) * 0.09);
+  const glow = SS.applyAnim ? SS.applyAnim(c, el, el.s || 100) : null;
+  if ((el.scaleX || 1) !== 1 || (el.scaleY || 1) !== 1) c.scale(el.scaleX || 1, el.scaleY || 1);
+  const paint = () => {
+    if (el.type === 'emoji') {
+      c.font = `${el.s * 0.9}px system-ui, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji"`;
+      c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillText(el.char, 0, el.s * 0.05);
+    } else {
+      const def = SS.STICKERS.find(s => s.id === el.kind);
+      if (def) def.draw(c, el.s, el.color);
     }
-  }
-  if (el.type === 'emoji') {
-    c.font = `${el.s * 0.9}px system-ui, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji"`;
-    c.textAlign = 'center'; c.textBaseline = 'middle';
-    c.fillText(el.char, 0, el.s * 0.05);
-  } else {
-    const def = SS.STICKERS.find(s => s.id === el.kind);
-    if (def) def.draw(c, el.s, el.color);
-  }
+  };
+  SS.paintWithGlow(c, glow, paint);
   c.restore();
 };
 
-/* ---------- blur patch ---------- */
-SS.drawBlurEl = function (c, el, baseCanvas) {
-  // sample the area beneath from baseCanvas, blur/pixelate it, draw clipped
+/* ---------- Unschärfe- und Pixelbereiche ----------
+   baseInfo = { canvas, matrix } – die Momentaufnahme liegt in Canvas-Pixeln vor,
+   die Matrix bildet Szenen- auf Canvas-Koordinaten ab. So stimmt der Ausschnitt
+   auch bei 2K/4K und beim slide-weisen Export. */
+SS.drawBlurEl = function (c, el, baseInfo) {
+  const base = baseInfo && baseInfo.canvas ? baseInfo.canvas : baseInfo;
+  const m = baseInfo && baseInfo.matrix ? baseInfo.matrix : null;
+  const k = m ? Math.sqrt(Math.abs(m.a * m.d - m.b * m.c)) || 1 : 1;
+
+  const ew = el.w * (el.scaleX || 1), eh = el.h * (el.scaleY || 1);
   const pad = el.strength * 2 + 8;
-  const bw = Math.ceil(el.w + pad * 2), bh = Math.ceil(el.h + pad * 2);
-  const region = document.createElement('canvas');
-  region.width = bw; region.height = bh;
+  const bw = Math.ceil(ew + pad * 2), bh = Math.ceil(eh + pad * 2);
+  const pw = Math.max(1, Math.round(bw * k)), ph = Math.max(1, Math.round(bh * k));
+
+  const region = SS.makeCanvas(pw, ph);
   const rc = region.getContext('2d');
   rc.save();
+  rc.scale(k, k);
   rc.translate(bw / 2, bh / 2);
   rc.rotate(-SS.deg2rad(el.rot));
   rc.translate(-el.x, -el.y);
-  rc.drawImage(baseCanvas, 0, 0);
+  if (m) {
+    const inv = m.inverse ? m.inverse() : null;
+    if (inv) rc.transform(inv.a, inv.b, inv.c, inv.d, inv.e, inv.f);
+  }
+  try { rc.drawImage(base, 0, 0); } catch (e) {}
   rc.restore();
 
-  const out = document.createElement('canvas');
-  out.width = bw; out.height = bh;
+  const out = SS.makeCanvas(pw, ph);
   const oc = out.getContext('2d');
   if (el.pixelate) {
-    const px = Math.max(4, el.strength);
-    const small = document.createElement('canvas');
-    small.width = Math.max(1, Math.round(bw / px)); small.height = Math.max(1, Math.round(bh / px));
+    const px = Math.max(4, el.strength) * k;
+    const small = SS.makeCanvas(Math.max(1, pw / px), Math.max(1, ph / px));
     small.getContext('2d').drawImage(region, 0, 0, small.width, small.height);
     oc.imageSmoothingEnabled = false;
-    oc.drawImage(small, 0, 0, bw, bh);
+    oc.drawImage(small, 0, 0, pw, ph);
+    SS.freeCanvas(small);
   } else {
-    oc.filter = `blur(${el.strength}px)`;
+    oc.filter = `blur(${el.strength * k}px)`;
     oc.drawImage(region, 0, 0);
   }
+  SS.freeCanvas(region);
 
   c.save();
   c.translate(el.x, el.y);
   c.rotate(SS.deg2rad(el.rot));
-  c.beginPath();
-  if (el.shape === 'ellipse') c.ellipse(0, 0, el.w / 2, el.h / 2, 0, 0, 7);
-  else c.rect(-el.w / 2, -el.h / 2, el.w, el.h);
+  SS.blurShapePath(c, el.shape, ew, eh);
   c.clip();
-  c.drawImage(out, -bw / 2, -bh / 2);
+  c.drawImage(out, -bw / 2, -bh / 2, bw, bh);
   c.restore();
+  SS.freeCanvas(out);
+};
+
+/* Formen für Unschärfe- und Pixelbereiche */
+SS.blurShapePath = function (c, shape, w, h) {
+  c.beginPath();
+  const hw = w / 2, hh = h / 2;
+  if (shape === 'ellipse') {
+    c.ellipse(0, 0, hw, hh, 0, 0, 7);
+  } else if (shape === 'heart') {
+    const s = Math.min(hw, hh);
+    c.moveTo(0, hh * 0.92);
+    c.bezierCurveTo(-hw * 1.25, hh * 0.05, -hw * 0.55, -hh * 1.15, 0, -hh * 0.38);
+    c.bezierCurveTo(hw * 0.55, -hh * 1.15, hw * 1.25, hh * 0.05, 0, hh * 0.92);
+    void s;
+  } else if (shape === 'star') {
+    for (let i = 0; i < 10; i++) {
+      const a = -Math.PI / 2 + i * Math.PI / 5;
+      const r = i % 2 ? 0.45 : 1;
+      const px = Math.cos(a) * hw * r, py = Math.sin(a) * hh * r;
+      i ? c.lineTo(px, py) : c.moveTo(px, py);
+    }
+    c.closePath();
+  } else if (shape === 'rounded') {
+    const r = Math.min(hw, hh) * 0.35;
+    c.moveTo(-hw + r, -hh);
+    c.arcTo(hw, -hh, hw, hh, r);
+    c.arcTo(hw, hh, -hw, hh, r);
+    c.arcTo(-hw, hh, -hw, -hh, r);
+    c.arcTo(-hw, -hh, hw, -hh, r);
+    c.closePath();
+  } else {
+    c.rect(-hw, -hh, w, h);
+  }
 };
 
 /* ---------- shadow for photo cards ---------- */
@@ -458,6 +628,15 @@ function drawCardWithShadow(c, el, card) {
   c.translate(el.x, el.y);
   c.rotate(SS.deg2rad(el.rot));
   c.globalAlpha = el.opacity ?? 1;
+  const glow = SS.applyAnim ? SS.applyAnim(c, el, card.height) : null;
+  if ((el.scaleX || 1) !== 1 || (el.scaleY || 1) !== 1) c.scale(el.scaleX || 1, el.scaleY || 1);
+  if (glow) {
+    c.save();
+    c.shadowColor = el.animGlowColor || '#ffe6b8';
+    c.shadowBlur = glow.blur;
+    c.drawImage(card, -card.width / 2, -card.height / 2);
+    c.restore();
+  }
   if (el.frame.shadow > 0 && el.frame.style !== 'none') {
     c.shadowColor = `rgba(45,28,20,${el.frame.shadow / 130})`;
     c.shadowBlur = 16 + el.frame.shadow * 0.35;
@@ -472,34 +651,37 @@ function drawCardWithShadow(c, el, card) {
 
 /* ---------- compose scene into ctx at full canvas coordinates ---------- */
 SS.paintScene = function (c, W, H, opts = {}) {
-  SS.paintBackground(c, W, H, opts.forExport);
-  // base snapshot for blur patches
+  if (!opts.noBg) {
+    if (SS.clip && SS.clip.ready) SS.drawClipFrame(c, W, H);
+    else SS.paintBackground(c, W, H, opts.forExport);
+  }
+  const skip = opts.skip;
+  // Momentaufnahme für Unschärfebereiche (in Canvas-Pixeln, mit Abbildungsmatrix)
   let base = null;
-  const hasBlur = SS.state.elements.some(e => e.type === 'blur');
+  const snap = () => {
+    const cw = c.canvas.width, ch = c.canvas.height;
+    if (!base) base = { canvas: SS.makeCanvas(cw, ch), matrix: null };
+    const bc = base.canvas.getContext('2d');
+    bc.setTransform(1, 0, 0, 1, 0, 0);
+    bc.clearRect(0, 0, cw, ch);
+    bc.drawImage(c.canvas, 0, 0);
+    base.matrix = c.getTransform ? c.getTransform() : null;
+    return base;
+  };
   for (const el of SS.state.elements) {
+    if (el.hidden) continue;
+    if (skip && skip.has(el.id)) continue;
     if (el.type === 'blur') {
-      if (!base) {
-        base = document.createElement('canvas');
-        base.width = W; base.height = H;
-        const bc = base.getContext('2d');
-        bc.drawImage(c.canvas, 0, 0);
-      } else {
-        base.getContext('2d').clearRect(0, 0, W, H);
-        base.getContext('2d').drawImage(c.canvas, 0, 0);
-      }
-      SS.drawBlurEl(c, el, base);
+      SS.drawBlurEl(c, el, snap());
     } else if (el.type === 'photo') {
       const card = SS.photoCard(el);
       if (card) drawCardWithShadow(c, el, card);
     } else if (el.type === 'text') {
       if (el.bgStyle === 'glass') {
-        // frosted glass: blur the region beneath the text box
+        // Milchglas: den Bereich unter dem Textfeld weichzeichnen
         const m = SS.measureText(el);
-        const snap = document.createElement('canvas');
-        snap.width = W; snap.height = H;
-        snap.getContext('2d').drawImage(c.canvas, 0, 0);
         SS.drawBlurEl(c, { x: el.x, y: el.y, rot: el.rot, w: m.w, h: m.h,
-          shape: 'rect', strength: 14, pixelate: false }, snap);
+          shape: 'rounded', strength: 14, pixelate: false, scaleX: el.scaleX, scaleY: el.scaleY }, snap());
         c.save();
         c.translate(el.x, el.y); c.rotate(SS.deg2rad(el.rot));
         c.globalAlpha = (el.bgAlpha ?? 0.85) * 0.4;
@@ -517,9 +699,20 @@ SS.paintScene = function (c, W, H, opts = {}) {
       SS.drawStickerEl(c, el);
     }
   }
+  if (base) { SS.freeCanvas(base.canvas); base = null; }
 };
 
-SS.hasAnimation = () => SS.state.elements.some(e => e.anim && e.anim !== 'none');
+/* Einzelnes Element zeichnen (für den Video-Renderer). */
+SS.drawElement = function (c, el) {
+  if (el.type === 'photo') {
+    const card = SS.photoCard(el);
+    if (card) drawCardWithShadow(c, el, card);
+  } else if (el.type === 'text') {
+    SS.drawTextEl(c, el);
+  } else if (el.type === 'sticker' || el.type === 'emoji') {
+    SS.drawStickerEl(c, el);
+  }
+};
 
 /* ---------- screen render ---------- */
 SS.render = function () {
@@ -556,7 +749,7 @@ SS.render = function () {
   c.restore();
 
   // slide boundary guides
-  if (st.guides && n > 1) {
+  if (st.guides && n > 1 && !(SS.clip && SS.clip.ready)) {
     c.save();
     c.strokeStyle = 'rgba(190,120,90,.75)';
     c.lineWidth = 2 / st.zoom;
@@ -587,37 +780,221 @@ SS.render = function () {
     c.restore();
   }
 
-  // selection box
-  const sel = SS.getSel();
-  if (sel) {
-    const { w, h } = SS.elSize(sel);
-    c.save();
-    c.translate(sel.x, sel.y);
-    c.rotate(SS.deg2rad(sel.rot));
-    c.strokeStyle = '#bf9b6c';
-    c.lineWidth = 2 / st.zoom;
-    c.strokeRect(-w / 2, -h / 2, w, h);
-    const hs = SS.HANDLE / st.zoom;
-    c.fillStyle = '#fff'; c.strokeStyle = '#bf9b6c'; c.lineWidth = 1.6 / st.zoom;
-    for (const [hx, hy] of [[-w / 2, -h / 2], [w / 2, -h / 2], [-w / 2, h / 2], [w / 2, h / 2]]) {
-      c.beginPath(); c.arc(hx, hy, hs, 0, 7); c.fill(); c.stroke();
-    }
-    // rotate handle
-    c.beginPath(); c.moveTo(0, -h / 2); c.lineTo(0, -h / 2 - 34 / st.zoom); c.stroke();
-    c.beginPath(); c.arc(0, -h / 2 - 40 / st.zoom, hs, 0, 7); c.fill(); c.stroke();
-    c.restore();
+  // Raster, Drittelregel, Goldener Schnitt, Safe-Zones
+  SS.drawGuides(c, W, H, slideW, n, st.zoom);
 
-    // warn: text crossing a slide boundary
-    if (sel.type === 'text' && n > 1) {
-      const halfW = w / 2;
-      for (let i = 1; i < n; i++) {
-        const bx = i * slideW;
-        if (Math.abs(sel.x - bx) < halfW) {
-          SS.ui.warnBoundary(true);
-          break;
-        } else SS.ui.warnBoundary(false);
+  // Auswahl
+  const selAll = SS.getSelAll();
+  const sel = SS.getSel();
+  const multi = selAll.length > 1;
+
+  if (multi) {
+    c.save();
+    c.strokeStyle = 'rgba(191,155,108,.6)';
+    c.lineWidth = 1.5 / st.zoom;
+    c.setLineDash([6 / st.zoom, 5 / st.zoom]);
+    for (const e of selAll) {
+      const s = SS.elSize(e);
+      c.save();
+      c.translate(e.x, e.y); c.rotate(SS.deg2rad(e.rot || 0));
+      c.strokeRect(-s.w / 2, -s.h / 2, s.w, s.h);
+      c.restore();
+    }
+    c.setLineDash([]);
+    c.restore();
+  }
+
+  if (sel) {
+    const hs = SS.HANDLE / st.zoom;
+    if (multi) {
+      const b = SS.selBounds();
+      c.save();
+      c.translate(b.cx, b.cy);
+      c.strokeStyle = '#bf9b6c'; c.lineWidth = 2 / st.zoom;
+      c.strokeRect(-b.w / 2, -b.h / 2, b.w, b.h);
+      c.fillStyle = '#fff'; c.lineWidth = 1.6 / st.zoom;
+      for (const [hx, hy] of [[-b.w / 2, -b.h / 2], [b.w / 2, -b.h / 2], [-b.w / 2, b.h / 2], [b.w / 2, b.h / 2]]) {
+        c.beginPath(); c.arc(hx, hy, hs, 0, 7); c.fill(); c.stroke();
+      }
+      c.beginPath(); c.moveTo(0, -b.h / 2); c.lineTo(0, -b.h / 2 - 34 / st.zoom); c.stroke();
+      c.beginPath(); c.arc(0, -b.h / 2 - 40 / st.zoom, hs, 0, 7); c.fill(); c.stroke();
+      c.restore();
+    } else {
+      const { w, h } = SS.elSize(sel);
+      c.save();
+      c.translate(sel.x, sel.y);
+      c.rotate(SS.deg2rad(sel.rot));
+      c.strokeStyle = sel.locked ? '#8a7f74' : '#bf9b6c';
+      c.lineWidth = 2 / st.zoom;
+      if (sel.locked) c.setLineDash([8 / st.zoom, 6 / st.zoom]);
+      c.strokeRect(-w / 2, -h / 2, w, h);
+      c.setLineDash([]);
+      if (!sel.locked) {
+        c.fillStyle = '#fff'; c.strokeStyle = '#bf9b6c'; c.lineWidth = 1.6 / st.zoom;
+        // Ecken = proportional
+        for (const [hx, hy] of [[-w / 2, -h / 2], [w / 2, -h / 2], [-w / 2, h / 2], [w / 2, h / 2]]) {
+          c.beginPath(); c.arc(hx, hy, hs, 0, 7); c.fill(); c.stroke();
+        }
+        // Kanten = freie Verzerrung
+        c.fillStyle = '#f3e6d2';
+        const eh2 = hs * 0.78;
+        for (const [hx, hy, vw, vh] of [[0, -h / 2, eh2 * 2.6, eh2 * 1.1], [0, h / 2, eh2 * 2.6, eh2 * 1.1],
+          [-w / 2, 0, eh2 * 1.1, eh2 * 2.6], [w / 2, 0, eh2 * 1.1, eh2 * 2.6]]) {
+          c.beginPath(); c.rect(hx - vw / 2, hy - vh / 2, vw, vh); c.fill(); c.stroke();
+        }
+        // Drehgriff
+        c.beginPath(); c.moveTo(0, -h / 2); c.lineTo(0, -h / 2 - 34 / st.zoom); c.stroke();
+        c.beginPath(); c.arc(0, -h / 2 - 40 / st.zoom, hs, 0, 7); c.fill(); c.stroke();
+      }
+      c.restore();
+
+      // Warnung: Text liegt auf einer Schnittkante
+      if (sel.type === 'text' && n > 1) {
+        const halfW = w / 2;
+        let bad = null;
+        for (let i = 1; i < n; i++) {
+          const bx = i * slideW;
+          if (Math.abs(sel.x - bx) < halfW) { bad = bx; break; }
+        }
+        if (bad !== null) {
+          c.save();
+          c.strokeStyle = 'rgba(224,90,70,.95)';
+          c.lineWidth = 4 / st.zoom;
+          c.setLineDash([16 / st.zoom, 10 / st.zoom]);
+          c.beginPath(); c.moveTo(bad, 0); c.lineTo(bad, H); c.stroke();
+          c.setLineDash([]);
+          c.restore();
+        }
+        SS.ui.warnBoundary(bad !== null);
       }
     }
+  }
+
+  // Lasso-Rechteck
+  if (SS._lasso) {
+    const L = SS._lasso;
+    c.save();
+    c.strokeStyle = '#d6698c'; c.lineWidth = 1.6 / st.zoom;
+    c.setLineDash([7 / st.zoom, 5 / st.zoom]);
+    c.fillStyle = 'rgba(214,105,140,.10)';
+    c.fillRect(L.x0, L.y0, L.x1 - L.x0, L.y1 - L.y0);
+    c.strokeRect(L.x0, L.y0, L.x1 - L.x0, L.y1 - L.y0);
+    c.setLineDash([]);
+    c.restore();
+  }
+
+  // Abstandsanzeige (Smart Guides)
+  if (SS._distMarks) SS.drawDistMarks(c, st.zoom);
+
+  c.restore();
+};
+
+/* ================================================================
+   Hilfsraster: Drittelregel, Gitter, Goldener Schnitt,
+   Instagram-Safe-Zones und das 3:4-Profilraster
+   ================================================================ */
+SS.drawGuides = function (c, W, H, slideW, n, zoom) {
+  const o = SS.state.overlays || {};
+  if (!o.thirds && !o.grid && !o.golden && !o.safe && !o.profile) return;
+  const lw = 1.2 / zoom;
+  c.save();
+
+  const perSlide = (fn) => {
+    for (let i = 0; i < n; i++) fn(i * slideW, slideW);
+  };
+
+  if (o.thirds) {
+    c.strokeStyle = 'rgba(255,255,255,.34)'; c.lineWidth = lw;
+    perSlide((x0, w) => {
+      for (let k = 1; k <= 2; k++) {
+        c.beginPath(); c.moveTo(x0 + w * k / 3, 0); c.lineTo(x0 + w * k / 3, H); c.stroke();
+        c.beginPath(); c.moveTo(x0, H * k / 3); c.lineTo(x0 + w, H * k / 3); c.stroke();
+      }
+    });
+  }
+
+  if (o.grid) {
+    c.strokeStyle = 'rgba(255,255,255,.20)'; c.lineWidth = lw;
+    perSlide((x0, w) => {
+      for (let k = 1; k <= 3; k++) {
+        c.beginPath(); c.moveTo(x0 + w * k / 4, 0); c.lineTo(x0 + w * k / 4, H); c.stroke();
+        c.beginPath(); c.moveTo(x0, H * k / 4); c.lineTo(x0 + w, H * k / 4); c.stroke();
+      }
+    });
+  }
+
+  if (o.golden) {
+    const g = 0.6180339887;
+    c.strokeStyle = 'rgba(212,175,126,.55)'; c.lineWidth = lw * 1.3;
+    perSlide((x0, w) => {
+      [g, 1 - g].forEach(f => {
+        c.beginPath(); c.moveTo(x0 + w * f, 0); c.lineTo(x0 + w * f, H); c.stroke();
+        c.beginPath(); c.moveTo(x0, H * f); c.lineTo(x0 + w, H * f); c.stroke();
+      });
+    });
+  }
+
+  // Instagram-Oberfläche: Story/Reel blenden oben, unten und rechts Bedienelemente ein
+  if (o.safe) {
+    c.fillStyle = 'rgba(224,90,70,.13)';
+    c.strokeStyle = 'rgba(224,90,70,.55)'; c.lineWidth = lw * 1.4;
+    perSlide((x0, w) => {
+      const top = H * (250 / 1920), bot = H * (400 / 1920), right = w * (200 / 1080);
+      c.fillRect(x0, 0, w, top);
+      c.fillRect(x0, H - bot, w, bot);
+      c.fillRect(x0 + w - right, top, right, H - top - bot);
+      c.beginPath(); c.moveTo(x0, top); c.lineTo(x0 + w, top); c.stroke();
+      c.beginPath(); c.moveTo(x0, H - bot); c.lineTo(x0 + w, H - bot); c.stroke();
+      c.beginPath(); c.moveTo(x0 + w - right, top); c.lineTo(x0 + w - right, H - bot); c.stroke();
+    });
+  }
+
+  // 3:4-Profilraster: so viel schneidet Instagram im Profil seitlich weg
+  if (o.profile) {
+    const keep = H * 3 / 4;                     // sichtbare Breite im Profil
+    c.fillStyle = 'rgba(120,140,190,.20)';
+    c.strokeStyle = 'rgba(120,140,190,.75)'; c.lineWidth = lw * 1.4;
+    perSlide((x0, w) => {
+      const cut = Math.max(0, (w - keep) / 2);
+      if (cut <= 0.5) return;
+      c.fillRect(x0, 0, cut, H);
+      c.fillRect(x0 + w - cut, 0, cut, H);
+      c.beginPath(); c.moveTo(x0 + cut, 0); c.lineTo(x0 + cut, H); c.stroke();
+      c.beginPath(); c.moveTo(x0 + w - cut, 0); c.lineTo(x0 + w - cut, H); c.stroke();
+    });
+  }
+  c.restore();
+};
+
+/* Abstandsanzeige zwischen Elementen (wie in Figma) */
+SS.drawDistMarks = function (c, zoom) {
+  const marks = SS._distMarks;
+  if (!marks || !marks.length) return;
+  c.save();
+  c.strokeStyle = '#d6698c';
+  c.fillStyle = '#d6698c';
+  c.lineWidth = 1.4 / zoom;
+  c.font = `${12 / zoom}px Poppins, sans-serif`;
+  c.textAlign = 'center';
+  c.textBaseline = 'middle';
+  for (const m of marks) {
+    c.beginPath(); c.moveTo(m.x0, m.y0); c.lineTo(m.x1, m.y1); c.stroke();
+    const t = 5 / zoom;
+    if (Math.abs(m.y1 - m.y0) < 0.5) {
+      c.beginPath(); c.moveTo(m.x0, m.y0 - t); c.lineTo(m.x0, m.y0 + t);
+      c.moveTo(m.x1, m.y1 - t); c.lineTo(m.x1, m.y1 + t); c.stroke();
+    } else {
+      c.beginPath(); c.moveTo(m.x0 - t, m.y0); c.lineTo(m.x0 + t, m.y0);
+      c.moveTo(m.x1 - t, m.y1); c.lineTo(m.x1 + t, m.y1); c.stroke();
+    }
+    const mx = (m.x0 + m.x1) / 2, my = (m.y0 + m.y1) / 2;
+    const label = m.label !== undefined ? m.label : String(Math.round(Math.hypot(m.x1 - m.x0, m.y1 - m.y0)));
+    const wpx = c.measureText(label).width + 10 / zoom;
+    c.fillStyle = 'rgba(20,14,10,.85)';
+    c.fillRect(mx - wpx / 2, my - 9 / zoom, wpx, 18 / zoom);
+    c.fillStyle = '#f6dbe4';
+    c.fillText(label, mx, my);
+    c.fillStyle = '#d6698c';
   }
   c.restore();
 };
