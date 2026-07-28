@@ -12,6 +12,8 @@ SS.audio = {};
   A.state = {
     soundId: 'none',
     musicVol: 0.55,
+    ducking: true,
+    duckAmount: 0.62,
     voiceVol: 1.0,
     fadeOut: true,
     voice: null,        // {buffer, dur, url}
@@ -59,16 +61,16 @@ SS.audio = {};
      Die Bibliothek
      ================================================================ */
   A.SOUNDS = [
-    { id: 'none',   name: 'Kein Ton',        icon: '🔇' },
-    { id: 'meer',   name: 'Meeresrauschen',  icon: '🌊', build: buildMeer },
-    { id: 'wald',   name: 'Wald mit Vögeln', icon: '🌲', build: buildWald },
-    { id: 'wind',   name: 'Leichter Wind',   icon: '🍃', build: buildWind },
-    { id: 'regen',  name: 'Regen',           icon: '🌧', build: buildRegen },
-    { id: 'ruhig',  name: 'Beruhigend',      icon: '🕊', build: buildRuhig },
-    { id: 'froh',   name: 'Fröhlich',        icon: '☀️', build: buildFroh },
-    { id: 'episch', name: 'Episch',          icon: '⛰', build: buildEpisch },
-    { id: 'lulla',  name: 'Baby / Lullaby',  icon: '🌙', build: buildLullaby },
-    { id: 'custom', name: 'Eigene MP3',      icon: '📁' },
+    { id: 'none',   name: 'Kein Ton',        icon: '<svg><use href="#i-minus"></use></svg>' },
+    { id: 'meer',   name: 'Meeresrauschen',  icon: '<svg><use href="#i-music"></use></svg>', build: buildMeer },
+    { id: 'wald',   name: 'Wald mit Vögeln', icon: '<svg><use href="#i-music"></use></svg>', build: buildWald },
+    { id: 'wind',   name: 'Leichter Wind',   icon: '<svg><use href="#i-music"></use></svg>', build: buildWind },
+    { id: 'regen',  name: 'Regen',           icon: '<svg><use href="#i-music"></use></svg>', build: buildRegen },
+    { id: 'ruhig',  name: 'Beruhigend',      icon: '<svg><use href="#i-music"></use></svg>', build: buildRuhig },
+    { id: 'froh',   name: 'Fröhlich',        icon: '<svg><use href="#i-music"></use></svg>', build: buildFroh },
+    { id: 'episch', name: 'Episch',          icon: '<svg><use href="#i-music"></use></svg>', build: buildEpisch },
+    { id: 'lulla',  name: 'Baby / Lullaby',  icon: '<svg><use href="#i-music"></use></svg>', build: buildLullaby },
+    { id: 'custom', name: 'Eigene MP3',      icon: '<svg><use href="#i-folder"></use></svg>' },
   ];
 
   /* --- Naturklänge --------------------------------------------------- */
@@ -344,16 +346,61 @@ SS.audio = {};
     if (!OC) return null;
     const sr = 44100;
     const ctx = new OC(2, Math.ceil(sr * dur), sr);
-    const put = (buf, vol) => {
+
+    /* Lautheitsverlauf der Stimme in 60-ms-Blöcken – Grundlage fürs Ducking */
+    function voiceEnvelope(buf) {
+      const step = Math.round(buf.sampleRate * 0.06);
+      const ch = buf.getChannelData(0);
+      const env = [];
+      let peak = 0;
+      for (let i = 0; i < ch.length; i += step) {
+        let sum = 0;
+        const end = Math.min(ch.length, i + step);
+        for (let k = i; k < end; k++) sum += ch[k] * ch[k];
+        const rms = Math.sqrt(sum / Math.max(1, end - i));
+        env.push(rms);
+        if (rms > peak) peak = rms;
+      }
+      return { env, step: 0.06, peak };
+    }
+
+    const put = (buf, vol, duckWith) => {
       if (!buf) return;
       const src = ctx.createBufferSource();
       src.buffer = buf;
       if (buf.duration < dur - 0.2 && buf !== voice) src.loop = true;
-      const g = ctx.createGain(); g.gain.value = vol;
+      const g = ctx.createGain();
+      g.gain.value = vol;
+
+      /* Musik unter der Stimme absenken (Ducking) */
+      if (duckWith && s.ducking !== false) {
+        const { env, step, peak } = voiceEnvelope(duckWith);
+        if (peak > 0.004) {
+          const thresh = peak * 0.18;
+          const duck = vol * (1 - (s.duckAmount ?? 0.62));
+          let last = null;
+          g.gain.setValueAtTime(vol, 0);
+          for (let i = 0; i < env.length; i++) {
+            const t = i * step;
+            if (t > dur) break;
+            const target = env[i] > thresh ? duck : vol;
+            if (target !== last) {
+              g.gain.setTargetAtTime(target, Math.max(0, t - 0.08), target < vol ? 0.06 : 0.28);
+              last = target;
+            }
+          }
+        }
+      }
+
+      /* Ausblenden am Ende, damit nichts abgeschnitten klingt */
+      if (s.fadeOut && buf !== voice && dur > 1.2) {
+        g.gain.setTargetAtTime(0.0001, Math.max(0, dur - 0.9), 0.3);
+      }
+
       src.connect(g); g.connect(ctx.destination);
       src.start(0);
     };
-    put(music, s.musicVol);
+    put(music, s.musicVol, voice);
     put(voice, s.voiceVol);
     return await ctx.startRendering();
   };

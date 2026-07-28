@@ -254,7 +254,7 @@ SS.cutout = {};
   function syncAuto() {
     const b = $('cutAuto');
     b.classList.toggle('sel', S.auto);
-    b.textContent = S.auto ? '🪄 Auto ✓' : '🪄 Auto';
+    b.textContent = S.auto ? 'Automatisch ✓' : 'Automatisch';
   }
 
   const HINTS = {
@@ -381,7 +381,7 @@ SS.cutout = {};
         if (el.frame.style !== 'none') { el.frame.style = 'none'; el.frame.border = 0; }
         SS.photoCacheClear(el.id); SS.invalidateEl(el);
         SS.pushHistory(); SS.ui.showProps(); SS.requestRender();
-        SS.toast('✂️ Hintergrund entfernt ✓');
+        SS.toast('Hintergrund entfernt', 2400, 'ok');
         close();
       };
       img.onerror = () => { SS.toast('Freistellen fehlgeschlagen'); close(); };

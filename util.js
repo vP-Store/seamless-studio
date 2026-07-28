@@ -250,7 +250,7 @@ SS.toast = function (msg, ms = 2600, type = 'info', action = null) {
   t.innerHTML = '';
   const ico = document.createElement('span');
   ico.className = 'toast-ico';
-  ico.textContent = { info: '💬', ok: '✓', warn: '⚠️', err: '✕' }[type] || '💬';
+  ico.textContent = { info: '·', ok: '✓', warn: '!', err: '✕' }[type] || '·';
   const txt = document.createElement('span');
   txt.textContent = msg;
   t.appendChild(ico); t.appendChild(txt);
@@ -278,7 +278,7 @@ SS.shareFiles = async function (files, title) {
   if (SS.canShareFiles(files)) {
     try {
       await navigator.share({ files, title: title || 'Seamless Studio', text: 'Erstellt mit Seamless Studio ✦' });
-      SS.toast('📤 Geteilt ✓');
+      SS.toast('Geteilt ✓', 2600, 'ok');
       return 'shared';
     } catch (e) {
       if (e && e.name === 'AbortError') return 'abort';

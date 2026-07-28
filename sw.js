@@ -1,12 +1,12 @@
 /* Seamless Studio – Service Worker (offline cache) */
-const VERSION = 'ss-v4.1.1';
+const VERSION = 'ss-v6.3.1';
 const ASSETS = [
   './',
   './index.html',
   './styles.css',
   './fonts.css',
   './manifest.webmanifest',
-  './jszip.min.js',
+  './zip5.js',
   './util.js',
   './backgrounds.js',
   './frames.js',
@@ -27,8 +27,20 @@ const ASSETS = [
   './video.js',
   './exporter.js',
   './main.js',
+  './content5.js',
+  './export5.js',
+  './caption5.js',
+  './beat5.js',
+  './motion5.js',
+  './pro5.js',
+  './clips5.js',
+  './mix5.js',
+  './curve5.js',
+  './kf5.js',
+  './studio5.js',
   './icon-192.png',
   './icon-512.png',
+  './icon-maskable-512.png',
   './apple-touch-icon.png',
   './lora-latin-400-normal.woff2',
   './lora-latin-400-italic.woff2',
@@ -87,7 +99,13 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+  e.waitUntil((async () => {
+    const c = await caches.open(VERSION);
+    // einzeln legen statt addAll: eine fehlende Datei darf nicht die ganze
+    // Offline-Installation verhindern
+    await Promise.all(ASSETS.map((u) => c.add(u).catch(() => {})));
+    await self.skipWaiting();
+  })());
 });
 
 self.addEventListener('activate', (e) => {

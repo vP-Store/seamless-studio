@@ -61,7 +61,7 @@
   // install prompt
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
-    SS.toast('💡 Tipp: Seamless Studio lässt sich als App installieren (Menü → „Zum Startbildschirm hinzufügen")', 5000);
+    SS.toast('Tipp: Seamless Studio lässt sich als App installieren (Menü → „Zum Startbildschirm hinzufügen")', 5000);
   });
 
   // prevent accidental navigation loss

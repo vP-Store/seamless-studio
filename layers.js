@@ -35,7 +35,7 @@
     return cv.toDataURL('image/png');
   }
 
-  const TYPE_ICON = { photo: '📷', text: '🅣', sticker: '💛', emoji: '😊', blur: '🔒' };
+  
 
   /* ---------- Liste aufbauen ---------- */
   let dragRow = null;
@@ -61,7 +61,7 @@
       const nameBox = document.createElement('div');
       nameBox.className = 'lp-name';
       const nm = document.createElement('span');
-      nm.textContent = (el.gid ? '🔗 ' : '') + (TYPE_ICON[el.type] || '•') + ' ' + SS.elName(el);
+      nm.textContent = (el.gid ? 'Gruppe · ' : '') + SS.elName(el);
       nm.title = 'Doppeltippen zum Umbenennen';
       nm.ondblclick = () => {
         const v = prompt('Name der Ebene', SS.elName(el));
@@ -78,7 +78,7 @@
 
       const eye = document.createElement('button');
       eye.className = 'lp-ico' + (el.hidden ? ' off' : '');
-      eye.textContent = el.hidden ? '🙈' : '👁';
+      eye.innerHTML = '<svg><use href="#i-eye"></use></svg>';
       eye.title = el.hidden ? 'Einblenden' : 'Ausblenden';
       eye.onclick = (e) => {
         e.stopPropagation();
@@ -89,7 +89,7 @@
 
       const lock = document.createElement('button');
       lock.className = 'lp-ico' + (el.locked ? ' on' : '');
-      lock.textContent = el.locked ? '🔒' : '🔓';
+      lock.innerHTML = '<svg><use href="#i-lock"></use></svg>';
       lock.title = el.locked ? 'Entsperren' : 'Sperren';
       lock.onclick = (e) => {
         e.stopPropagation();

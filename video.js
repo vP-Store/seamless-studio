@@ -23,11 +23,11 @@ SS.video = {};
   };
 
   V.STYLES = [
-    { id: 'pan',       name: '🎞 Kamerafahrt',    desc: 'Fährt sanft über das ganze Panorama' },
-    { id: 'spotlight', name: '🔍 Foto-Spotlight', desc: 'Zoomt Foto für Foto, folgt auch dem Höhenversatz' },
-    { id: 'kombi',     name: '✨ Kombi',          desc: 'Überblick → jedes Foto → Überblick' },
-    { id: 'kenburns',  name: '🌅 Ken Burns',      desc: 'Langsames Hineinzoomen auf das Gesamtbild' },
-    { id: 'still',     name: '🖼 Standbild',      desc: 'Kamera steht still – nur die Elemente bewegen sich' },
+    { id: 'pan',       name: 'Kamerafahrt',    desc: 'Fährt sanft über das ganze Panorama' },
+    { id: 'spotlight', name: 'Foto-Spotlight', desc: 'Zoomt Foto für Foto, folgt auch dem Höhenversatz' },
+    { id: 'kombi',     name: 'Kombi',          desc: 'Überblick → jedes Foto → Überblick' },
+    { id: 'kenburns',  name: 'Ken Burns',      desc: 'Langsames Hineinzoomen auf das Gesamtbild' },
+    { id: 'still',     name: 'Standbild',      desc: 'Kamera steht still – nur die Elemente bewegen sich' },
   ];
 
   const OUT_SIZES = {
@@ -399,10 +399,10 @@ SS.video = {};
       b.className = 'swatch snd' + (A.state.soundId === s.id ? ' sel' : '');
       b.innerHTML = `<span class="snd-ico">${s.icon}</span><label>${s.name}</label>`;
       b.onclick = () => {
-        if (s.id === 'custom' && !A.state.custom) { SS.toast('Lade zuerst eine eigene Datei 🙂'); return; }
+        if (s.id === 'custom' && !A.state.custom) { SS.toast('Lade zuerst eine eigene Datei', 2400, 'warn'); return; }
         A.state.soundId = s.id;
         renderSounds();
-        SS.toast(s.id === 'none' ? 'Ton aus' : '🎵 ' + s.name);
+        SS.toast(s.id === 'none' ? 'Ton aus' : s.name);
       };
       box.appendChild(b);
     });
@@ -447,7 +447,7 @@ SS.video = {};
     try {
       await A.loadCustom(f);
       renderSounds();
-      SS.toast('🎵 Eigene Musik geladen ✓');
+      SS.toast('Eigene Musik geladen', 2400, 'ok');
     } catch (err) { SS.toast('Diese Audiodatei konnte nicht gelesen werden'); }
     e.target.value = '';
   });
@@ -464,7 +464,7 @@ SS.video = {};
         const au = $('vidVoicePlay');
         au.src = v.url; au.classList.remove('hidden');
         $('vidVoiceDel').classList.remove('hidden');
-        SS.toast('🎙 Voiceover aufgenommen ✓');
+        SS.toast('Voiceover aufgenommen', 2400, 'ok');
       } catch (err) {
         recBtn.textContent = '● Aufnahme starten';
         recBtn.classList.remove('recording');
@@ -513,7 +513,7 @@ SS.video = {};
       renderStyles();
       syncClipUI();
       V.refresh(false);
-      SS.toast('📹 Clip geladen – jetzt Text & Sticker darüber legen ✨');
+      SS.toast('Clip geladen – jetzt Text und Sticker darüber legen', 3200, 'ok');
     } catch (err) { SS.toast(err.message); }
     e.target.value = '';
   });
@@ -567,9 +567,9 @@ SS.video = {};
         b.download = 'Seamless_Ton.wav';
         b.click();
         setTimeout(() => URL.revokeObjectURL(b.href), 8000);
-        SS.toast('🎬 Video + Tonspur getrennt gespeichert (dein Gerät kann Ton nicht direkt einbetten)', 5000);
+        SS.toast('Video und Tonspur getrennt gespeichert (dein Gerät kann Ton nicht direkt einbetten)', 5000);
       } else {
-        SS.toast(res.hasAudio ? '🎬 Video mit Ton exportiert ✓' : '🎬 Video exportiert ✓');
+        SS.toast(res.hasAudio ? 'Video mit Ton exportiert' : 'Video exportiert', 2600, 'ok');
       }
     } catch (e) {
       SS.toast('Export fehlgeschlagen: ' + e.message, 4000);
@@ -591,7 +591,7 @@ SS.video = {};
       const files = [new File([res.blob], 'Seamless_Video.' + res.ext, { type: res.blob.type })];
       if (res.audioBlob) files.push(new File([res.audioBlob], 'Seamless_Ton.wav', { type: 'audio/wav' }));
       const r = await SS.shareFiles(files, 'Seamless Studio');
-      if (r === 'shared') SS.toast('📤 In der Teilen-Auswahl Instagram wählen → Reel oder Story', 4200);
+      if (r === 'shared') SS.toast('In der Teilen-Auswahl Instagram wählen → Reel oder Story', 4200);
     } catch (e) {
       SS.toast('Teilen fehlgeschlagen: ' + e.message, 4000);
     } finally {

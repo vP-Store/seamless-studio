@@ -16,7 +16,75 @@ SS.FILTER_PRESETS = [
 ];
 
 SS.defaultFilter = () => ({ preset: 'original', brightness: 100, contrast: 100, saturate: 100,
-  warmth: 0, sepia: 0, blur: 0, vignette: 0, grain: 0 });
+  warmth: 0, sepia: 0, blur: 0, vignette: 0, grain: 0,
+  highlights: 0, shadows: 0, black: 0, white: 0 });
+
+/* Tonwert-Kurve: Lichter, Tiefen, Schwarz- und Weißpunkt als 256er-Tabelle.
+   Wirkt auf alle drei Kanäle gleich, damit Farben erhalten bleiben. */
+SS.toneLUT = function (fl) {
+  const hi = (fl.highlights || 0) / 100, sh = (fl.shadows || 0) / 100;
+  const bp = (fl.black || 0) / 100 * 0.42, wp = (fl.white || 0) / 100 * 0.42;
+  const lut = new Uint8ClampedArray(256);
+  const lo = bp * 255, up = 255 - wp * 255;
+  const span = Math.max(1, up - lo);
+  for (let i = 0; i < 256; i++) {
+    let v = (i - lo) / span;             // Schwarz- und Weißpunkt
+    v = Math.max(0, Math.min(1, v));
+    v += sh * 0.55 * Math.pow(1 - v, 2);  // Tiefen öffnen oder schließen
+    v += hi * 0.55 * Math.pow(v, 2);      // Lichter zurückholen oder anheben
+    lut[i] = Math.round(Math.max(0, Math.min(1, v)) * 255);
+  }
+  return lut;
+};
+SS.hasTone = (fl) => !!(fl && (fl.highlights || fl.shadows || fl.black || fl.white || fl.curve || fl.hsl));
+
+/* Freie Kurve: vier Stützpunkte, monoton interpoliert, als 256er-Tabelle */
+SS.curveLUT = function (pts) {
+  const p = [{ x: 0, y: 0 }].concat(pts.map(q => ({ x: q.x, y: q.y }))).concat([{ x: 1, y: 1 }])
+    .sort((a, b) => a.x - b.x);
+  const lut = new Uint8ClampedArray(256);
+  for (let i = 0; i < 256; i++) {
+    const x = i / 255;
+    let k = 0;
+    while (k < p.length - 2 && p[k + 1].x < x) k++;
+    const a = p[k], b = p[k + 1];
+    const t = b.x === a.x ? 0 : (x - a.x) / (b.x - a.x);
+    const e = t * t * (3 - 2 * t);            // weiche Schulter statt Knick
+    lut[i] = Math.round(Math.max(0, Math.min(1, a.y + (b.y - a.y) * e)) * 255);
+  }
+  return lut;
+};
+
+/* Farbbereiche für den HSL-Mischer */
+SS.HSL_RANGES = [
+  ['rot', 'Rot', 350, 15], ['orange', 'Orange', 15, 45], ['gelb', 'Gelb', 45, 70],
+  ['gruen', 'Grün', 70, 165], ['blau', 'Blau', 165, 265], ['magenta', 'Magenta', 265, 350],
+];
+
+SS.rgb2hsl = function (r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+  let h = 0;
+  if (d) {
+    if (mx === r) h = ((g - b) / d) % 6;
+    else if (mx === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    h *= 60; if (h < 0) h += 360;
+  }
+  const l = (mx + mn) / 2;
+  const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+  return [h, s, l];
+};
+SS.hsl2rgb = function (h, s, l) {
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = l - c / 2;
+  let r = 0, g = 0, b = 0;
+  if (h < 60) { r = c; g = x; } else if (h < 120) { r = x; g = c; }
+  else if (h < 180) { g = c; b = x; } else if (h < 240) { g = x; b = c; }
+  else if (h < 300) { r = x; b = c; } else { r = c; b = x; }
+  return [(r + m) * 255, (g + m) * 255, (b + m) * 255];
+};
 
 /* ---------- filtered photo cache ---------- */
 const _photoCache = {}; // el.id -> {key, canvas}
@@ -104,6 +172,62 @@ SS.filteredPhoto = function (el) {
   c.restore();
   c.filter = 'none';
 
+  if (SS.hasTone(fl)) {
+    const lut = SS.toneLUT(fl);
+    const clut = fl.curve && fl.curve.length ? SS.curveLUT(fl.curve) : null;
+    const hsl = fl.hsl;
+    const img = c.getImageData(0, 0, cv.width, cv.height);
+    const d = img.data;
+    for (let i = 0; i < d.length; i += 4) {
+      let r = lut[d[i]], g = lut[d[i + 1]], b = lut[d[i + 2]];
+      if (clut) { r = clut[r]; g = clut[g]; b = clut[b]; }
+      if (hsl) {
+        const [h0, s0, l0] = SS.rgb2hsl(r, g, b);
+        if (s0 > 0.04) {
+          for (const [key, , from, to] of SS.HSL_RANGES) {
+            const adj = hsl[key];
+            if (!adj || (!adj.h && !adj.s && !adj.l)) continue;
+            const inRange = from > to ? (h0 >= from || h0 < to) : (h0 >= from && h0 < to);
+            if (!inRange) continue;
+            const nh = (h0 + (adj.h || 0) + 360) % 360;
+            const ns = Math.max(0, Math.min(1, s0 * (1 + (adj.s || 0) / 100)));
+            const nl = Math.max(0, Math.min(1, l0 * (1 + (adj.l || 0) / 100)));
+            const out = SS.hsl2rgb(nh, ns, nl);
+            r = out[0]; g = out[1]; b = out[2];
+            break;
+          }
+        }
+      }
+      d[i] = r; d[i + 1] = g; d[i + 2] = b;
+    }
+    c.putImageData(img, 0, 0);
+  }
+
+  /* Freisteller: Schlagschatten und Kontur ansetzen, damit das Motiv
+     nicht aufgeklebt wirkt. drop-shadow arbeitet auf dem Alphakanal. */
+  if (el.cutout && (el.cutShadow || el.cutOutline)) {
+    const tmp = SS.makeCanvas(cv.width, cv.height);
+    tmp.getContext('2d').drawImage(cv, 0, 0);
+    c.clearRect(0, 0, cv.width, cv.height);
+    const u = Math.max(cv.width, cv.height) / 100;
+    const parts = [];
+    if (el.cutOutline) {
+      const d = Math.max(1, (el.cutOutlineWidth ?? 6) * u * 0.16);
+      const col = el.cutOutlineColor || '#ffffff';
+      for (const [dx, dy] of [[d, 0], [-d, 0], [0, d], [0, -d], [d * .7, d * .7], [-d * .7, d * .7], [d * .7, -d * .7], [-d * .7, -d * .7]])
+        parts.push(`drop-shadow(${dx.toFixed(2)}px ${dy.toFixed(2)}px 0 ${col})`);
+    }
+    if (el.cutShadow) {
+      const o = (el.cutShadowOffset ?? 24) * u * 0.14;
+      const bl = (el.cutShadowBlur ?? 30) * u * 0.2;
+      parts.push(`drop-shadow(${o.toFixed(2)}px ${(o * 1.2).toFixed(2)}px ${bl.toFixed(2)}px rgba(20,14,10,${(el.cutShadowAlpha ?? 45) / 100}))`);
+    }
+    c.filter = parts.join(' ');
+    c.drawImage(tmp, 0, 0);
+    c.filter = 'none';
+    SS.freeCanvas(tmp);
+  }
+
   if (fl.warmth) {
     c.save();
     c.globalCompositeOperation = fl.warmth > 0 ? 'overlay' : 'overlay';
@@ -168,6 +292,7 @@ SS.elSizeRaw = function (el) {
     return { w: el.s * ar, h: el.s };
   }
   if (el.type === 'blur') return { w: el.w, h: el.h };
+  if (el.type === 'video') return { w: el.w, h: el.h };
   return { w: 100, h: 100 };
 };
 SS.elSize = function (el) {
@@ -743,6 +868,9 @@ SS.paintScene = function (c, W, H, opts = {}) {
   for (const el of SS.state.elements) {
     if (el.hidden) continue;
     if (skip && skip.has(el.id)) continue;
+    /* Mischmodus gilt genau für dieses Element – die Ebenenfolge bleibt unberührt */
+    c.save();
+    if (el.blend && el.blend !== 'source-over') c.globalCompositeOperation = el.blend;
     if (el.type === 'blur') {
       SS.drawBlurEl(c, el, snap());
     } else if (el.type === 'photo') {
@@ -775,6 +903,38 @@ SS.paintScene = function (c, W, H, opts = {}) {
       SS.drawTextEl(c, el);
     } else if (el.type === 'sticker' || el.type === 'emoji') {
       SS.drawStickerEl(c, el);
+    } else if (el.type === 'video' && SS.drawVideoEl) {
+      SS.drawVideoEl(c, el);
+    }
+    c.restore();
+  }
+  /* Zweiter Durchgang: freigestellte Motive, die über dem Text liegen sollen.
+     Damit entsteht „Text hinter dem Motiv" ohne zweites Element. */
+  for (const el of SS.state.elements) {
+    if (el.hidden || el.type !== 'photo' || !el.overlay) continue;
+    if (skip && skip.has(el.id)) continue;
+    const card = SS.photoCard(el);
+    if (card) drawCardWithShadow(c, el, card);
+  }
+
+  /* Neu eingesetzte Elemente kurz umreißen, damit man sieht, was entstanden ist */
+  if (SS._born && !opts.forExport) {
+    const now = performance.now();
+    for (const el of SS.state.elements) {
+      const t0 = SS._born.get(el.id);
+      if (!t0) continue;
+      const p = (now - t0) / 620;
+      if (p >= 1) { SS._born.delete(el.id); continue; }
+      const s = SS.elSize(el);
+      const grow = 1 + 0.16 * (1 - p) * (1 - p);
+      c.save();
+      c.translate(el.x, el.y);
+      c.rotate(SS.deg2rad(el.rot || 0));
+      c.globalAlpha = 1 - p;
+      c.strokeStyle = '#C8553D';
+      c.lineWidth = 2.4 / (SS.state.zoom || 1);
+      c.strokeRect(-s.w * grow / 2, -s.h * grow / 2, s.w * grow, s.h * grow);
+      c.restore();
     }
   }
   if (base) { SS.freeCanvas(base.canvas); base = null; }
@@ -816,7 +976,7 @@ SS.render = function () {
 
   // canvas frame
   c.save();
-  c.shadowColor = 'rgba(50,30,20,.22)'; c.shadowBlur = 30 / st.zoom;
+  c.shadowColor = 'rgba(0,0,0,.35)'; c.shadowBlur = 30 / st.zoom;
   c.fillStyle = '#fff';
   c.fillRect(0, 0, W, H);
   c.restore();
@@ -829,7 +989,7 @@ SS.render = function () {
   // slide boundary guides
   if (st.guides && n > 1 && !(SS.clip && SS.clip.ready)) {
     c.save();
-    c.strokeStyle = 'rgba(190,120,90,.75)';
+    c.strokeStyle = 'rgba(200,85,61,.75)';
     c.lineWidth = 2 / st.zoom;
     c.setLineDash([14 / st.zoom, 10 / st.zoom]);
     for (let i = 1; i < n; i++) {
@@ -837,7 +997,7 @@ SS.render = function () {
     }
     c.setLineDash([]);
     // slide numbers
-    c.fillStyle = 'rgba(190,120,90,.85)';
+    c.fillStyle = 'rgba(200,85,61,.85)';
     c.font = `${26 / st.zoom}px Poppins, sans-serif`;
     c.textAlign = 'left';
     for (let i = 0; i < n; i++) c.fillText(String(i + 1), i * slideW + 12 / st.zoom, 34 / st.zoom);
@@ -846,9 +1006,12 @@ SS.render = function () {
 
   // snap guide lines (set by interact.js)
   if (SS._snapLines) {
+    /* Einrast-Linien blitzen auf und verblassen wieder */
+    const age = SS._snapT ? (performance.now() - SS._snapT) / 420 : 0;
+    const a = Math.max(0.25, 1 - age);
     c.save();
-    c.strokeStyle = 'rgba(214,105,140,.9)';
-    c.lineWidth = 1.5 / st.zoom;
+    c.strokeStyle = `rgba(200,85,61,${(0.9 * a).toFixed(3)})`;
+    c.lineWidth = (1.5 + 1.6 * (1 - Math.min(1, age))) / st.zoom;
     for (const g of SS._snapLines) {
       c.beginPath();
       if (g.v !== undefined) { c.moveTo(g.v, 0); c.lineTo(g.v, H); }
@@ -868,9 +1031,10 @@ SS.render = function () {
 
   if (multi) {
     c.save();
-    c.strokeStyle = 'rgba(191,155,108,.6)';
+    c.strokeStyle = 'rgba(200,85,61,.55)';
     c.lineWidth = 1.5 / st.zoom;
     c.setLineDash([6 / st.zoom, 5 / st.zoom]);
+    c.lineDashOffset = -(SS._ants || 0) / st.zoom;
     for (const e of selAll) {
       const s = SS.elSize(e);
       c.save();
@@ -879,6 +1043,7 @@ SS.render = function () {
       c.restore();
     }
     c.setLineDash([]);
+    c.lineDashOffset = 0;
     c.restore();
   }
 
@@ -888,9 +1053,9 @@ SS.render = function () {
       const b = SS.selBounds();
       c.save();
       c.translate(b.cx, b.cy);
-      c.strokeStyle = '#bf9b6c'; c.lineWidth = 2 / st.zoom;
+      c.strokeStyle = '#C8553D'; c.lineWidth = 2 / st.zoom;
       c.strokeRect(-b.w / 2, -b.h / 2, b.w, b.h);
-      c.fillStyle = '#fff'; c.lineWidth = 1.6 / st.zoom;
+      c.fillStyle = '#F5F0E9'; c.lineWidth = 1.6 / st.zoom;
       for (const [hx, hy] of [[-b.w / 2, -b.h / 2], [b.w / 2, -b.h / 2], [-b.w / 2, b.h / 2], [b.w / 2, b.h / 2]]) {
         c.beginPath(); c.arc(hx, hy, hs, 0, 7); c.fill(); c.stroke();
       }
@@ -902,13 +1067,16 @@ SS.render = function () {
       c.save();
       c.translate(sel.x, sel.y);
       c.rotate(SS.deg2rad(sel.rot));
-      c.strokeStyle = sel.locked ? '#8a7f74' : '#bf9b6c';
+      c.strokeStyle = sel.locked ? '#8A8078' : '#C8553D';
       c.lineWidth = 2 / st.zoom;
-      if (sel.locked) c.setLineDash([8 / st.zoom, 6 / st.zoom]);
+      /* Auswahlrahmen als laufende Strichlinie – gesperrt weiter gestrichelt */
+      c.setLineDash(sel.locked ? [8 / st.zoom, 6 / st.zoom] : [11 / st.zoom, 7 / st.zoom]);
+      c.lineDashOffset = -(SS._ants || 0) / st.zoom;
       c.strokeRect(-w / 2, -h / 2, w, h);
       c.setLineDash([]);
+      c.lineDashOffset = 0;
       if (!sel.locked) {
-        c.fillStyle = '#fff'; c.strokeStyle = '#bf9b6c'; c.lineWidth = 1.6 / st.zoom;
+        c.fillStyle = '#F5F0E9'; c.strokeStyle = '#C8553D'; c.lineWidth = 1.6 / st.zoom;
         // Ecken = proportional
         for (const [hx, hy] of [[-w / 2, -h / 2], [w / 2, -h / 2], [-w / 2, h / 2], [w / 2, h / 2]]) {
           c.beginPath(); c.arc(hx, hy, hs, 0, 7); c.fill(); c.stroke();
@@ -936,7 +1104,7 @@ SS.render = function () {
         }
         if (bad !== null) {
           c.save();
-          c.strokeStyle = 'rgba(224,90,70,.95)';
+          c.strokeStyle = 'rgba(178,58,72,.95)';
           c.lineWidth = 4 / st.zoom;
           c.setLineDash([16 / st.zoom, 10 / st.zoom]);
           c.beginPath(); c.moveTo(bad, 0); c.lineTo(bad, H); c.stroke();
@@ -952,9 +1120,9 @@ SS.render = function () {
   if (SS._lasso) {
     const L = SS._lasso;
     c.save();
-    c.strokeStyle = '#d6698c'; c.lineWidth = 1.6 / st.zoom;
+    c.strokeStyle = '#C8553D'; c.lineWidth = 1.6 / st.zoom;
     c.setLineDash([7 / st.zoom, 5 / st.zoom]);
-    c.fillStyle = 'rgba(214,105,140,.10)';
+    c.fillStyle = 'rgba(200,85,61,.10)';
     c.fillRect(L.x0, L.y0, L.x1 - L.x0, L.y1 - L.y0);
     c.strokeRect(L.x0, L.y0, L.x1 - L.x0, L.y1 - L.y0);
     c.setLineDash([]);

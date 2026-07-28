@@ -403,16 +403,16 @@ SS.ui = {};
 
   /* ================= text panel ================= */
   SS.FONT_GROUPS = [
-    { name: '✒️ Serif & Klassisch', fonts: ['Lora', 'Playfair Display', 'Cormorant Garamond',
+    { name: 'Serif & Klassisch', fonts: ['Lora', 'Playfair Display', 'Cormorant Garamond',
       'Cormorant Upright', 'DM Serif Display', 'Libre Baskerville', 'Marcellus', 'Italiana',
       'Cinzel', 'Abril Fatface', 'Gilda Display', 'Prata', 'Bodoni Moda', 'Forum', 'Philosopher'] },
-    { name: '🖋 Kalligrafie & Script', fonts: ['Dancing Script', 'Great Vibes', 'Sacramento',
+    { name: 'Kalligrafie & Script', fonts: ['Dancing Script', 'Great Vibes', 'Sacramento',
       'Parisienne', 'Satisfy', 'Pacifico', 'Alex Brush', 'Allura', 'Tangerine',
       'Petit Formal Script', 'Mrs Saint Delafield', 'Yellowtail', 'Cookie', 'La Belle Aurore'] },
-    { name: '🔤 Modern & Sans', fonts: ['Poppins', 'Montserrat', 'Raleway', 'Quicksand',
+    { name: 'Modern & Sans', fonts: ['Poppins', 'Montserrat', 'Raleway', 'Quicksand',
       'Comfortaa', 'Julius Sans One', 'Tenor Sans'] },
-    { name: '🅰 Plakativ', fonts: ['Bebas Neue', 'Anton', 'Archivo Black'] },
-    { name: '✏️ Handschrift & Schreibmaschine', fonts: ['Caveat', 'Shadows Into Light',
+    { name: 'Plakativ', fonts: ['Bebas Neue', 'Anton', 'Archivo Black'] },
+    { name: 'Handschrift & Schreibmaschine', fonts: ['Caveat', 'Shadows Into Light',
       'Patrick Hand', 'Kalam', 'Amatic SC', 'Special Elite', 'Courier Prime'] },
   ];
   SS.FONTS = SS.FONT_GROUPS.reduce((a, g) => a.concat(g.fonts), []);
@@ -602,7 +602,7 @@ SS.ui = {};
   let layoutSeed = 1;
   function autoLayout(seed) {
     const photos = st.elements.filter(e => e.type === 'photo' && !e.hidden && !e.locked);
-    if (!photos.length) { SS.toast('Füge zuerst Fotos hinzu 🙂', 2400, 'warn'); return; }
+    if (!photos.length) { SS.toast('Füge zuerst Fotos hinzu', 2400, 'warn'); return; }
     const { W, H } = SS.canvasSize();
     const tilt = +$('alTilt').value;
     const stagger = +$('alStagger').value;
@@ -906,7 +906,7 @@ SS.ui = {};
     }
     if (st.elements.some(e => e.type === 'photo')) autoLayout(3);
     SS.bgCacheInvalidate(); SS.pushHistory(); SS.requestRender();
-    SS.toast(`✨ Vorlage „${tpl.name}" angewendet`);
+    SS.toast(`Vorlage „${tpl.name}" angewendet`);
   }
 
   /* ================= project panel ================= */
@@ -1128,7 +1128,7 @@ SS.ui = {};
   SS.ui.warnBoundary = function (bad) {
     if (bad && !boundaryWarned) {
       boundaryWarned = true;
-      SS.toast('⚠️ Der Text liegt über einer Schnittkante – er wird beim Wischen zerschnitten!', 3500);
+      SS.toast('Der Text liegt über einer Schnittkante – er wird beim Wischen zerschnitten!', 3500);
       setTimeout(() => { boundaryWarned = false; }, 6000);
     }
   };
@@ -1162,7 +1162,7 @@ SS.ui = {};
         SS.addPaletteColor && SS.addPaletteColor(hex);
         SS.pushHistory('Farbe aufgenommen'); SS.ui.showProps();
       };
-      SS.toast('💧 Tippe auf die Leinwand, um eine Farbe aufzunehmen');
+      SS.toast('Tippe auf die Leinwand, um eine Farbe aufzunehmen');
       if (isMobile()) props.classList.add('mini');
     };
     d.appendChild(pick);
@@ -1208,13 +1208,13 @@ SS.ui = {};
       d.appendChild(b);
     };
     const list = SS.getSelAll();
-    mk(sel.locked ? '🔒 Gesperrt' : '🔓 Frei', sel.locked, () => {
+    mk(sel.locked ? 'Gesperrt' : 'Frei', sel.locked, () => {
       const v = !sel.locked; list.forEach(e => { e.locked = v; });
     });
-    mk(sel.hidden ? '🙈 Versteckt' : '👁 Sichtbar', sel.hidden, () => {
+    mk(sel.hidden ? 'Versteckt' : 'Sichtbar', sel.hidden, () => {
       const v = !sel.hidden; list.forEach(e => { e.hidden = v; });
     });
-    mk(SS.arLock ? '⛓ Seitenverhältnis' : '⛓̸ Frei verzerren', SS.arLock, () => { SS.arLock = !SS.arLock; });
+    mk(SS.arLock ? 'Seitenverhältnis' : 'Frei verzerren', SS.arLock, () => { SS.arLock = !SS.arLock; });
     if ((sel.scaleX || 1) !== 1 || (sel.scaleY || 1) !== 1) {
       mk('↺ Verzerrung zurück', false, () => { list.forEach(e => { e.scaleX = 1; e.scaleY = 1; }); });
     }
@@ -1228,9 +1228,9 @@ SS.ui = {};
 
     body.appendChild(h4('Gruppe'));
     const gr = document.createElement('div'); gr.className = 'chips';
-    const gb = document.createElement('button'); gb.textContent = '🔗 Gruppieren';
+    const gb = document.createElement('button'); gb.textContent = 'Gruppieren';
     gb.onclick = () => SS.ui.groupSel();
-    const ub = document.createElement('button'); ub.textContent = '⛓̸ Auflösen';
+    const ub = document.createElement('button'); ub.textContent = 'Auflösen';
     ub.onclick = () => SS.ui.ungroupSel();
     gr.appendChild(gb); gr.appendChild(ub);
     body.appendChild(gr);
@@ -1309,7 +1309,7 @@ SS.ui = {};
 
     // Animation für alle Ausgewählten auf einmal
     const gleich = list.every(e => e.type === list[0].type);
-    body.appendChild(h4('✨ Animation für alle'));
+    body.appendChild(h4('Animation für alle'));
     const aGruppen = SS.ANIM_GROUPS.filter(g => !g.textOnly || (gleich && list[0].type === 'text'));
     if (!aGruppen.some(g => g.id === _animGroup)) _animGroup = aGruppen[0].id;
     const aTabs = document.createElement('div'); aTabs.className = 'subtabs anim-tabs';
@@ -1381,7 +1381,7 @@ SS.ui = {};
     const curDef = SS.ANIM_BY_ID[cur];
     if (curDef && curDef.group) _animGroup = curDef.group;
 
-    body.appendChild(h4('✨ Animation'));
+    body.appendChild(h4('Animation'));
 
     const off = document.createElement('button');
     off.className = 'wide anim-off' + (cur === 'none' ? ' sel' : '');
@@ -1437,7 +1437,7 @@ SS.ui = {};
       }
       const all = document.createElement('button');
       all.className = 'wide';
-      all.textContent = '🎯 Auf alle gleichartigen Elemente übertragen';
+      all.textContent = 'Auf alle gleichartigen Elemente übertragen';
       all.onclick = () => {
         let n = 0;
         for (const el of st.elements) {
@@ -1476,7 +1476,7 @@ SS.ui = {};
     const all = SS.getSelAll();
     if (all.length > 1) { multiProps(all); return; }
 
-    const titles = { photo: '📷 Foto', text: '🅣 Text', sticker: '💛 Sticker', emoji: '😊 Emoji', blur: '🔒 Blur' };
+    const titles = { photo: 'Foto', text: 'Text', sticker: 'Sticker', emoji: 'Emoji', blur: 'Bereich' };
     $('propsTitle').textContent = (titles[sel.type] || 'Element') + (sel.gid ? ' · Gruppe' : '');
 
     body.appendChild(nudgeRow());
@@ -1484,7 +1484,7 @@ SS.ui = {};
     if (sel.gid) {
       const ug = document.createElement('button');
       ug.className = 'wide';
-      ug.textContent = '⛓̸ Gruppierung aufheben';
+      ug.textContent = 'Gruppierung aufheben';
       ug.onclick = () => SS.ui.ungroupSel();
       body.appendChild(ug);
     }
@@ -1519,10 +1519,10 @@ SS.ui = {};
       body.appendChild(ctlRange('Vignette', F.vignette, 0, 60, 1, v => { F.vignette = v; upd(); }));
       body.appendChild(ctlRange('Filmkorn', F.grain, 0, 40, 1, v => { F.grain = v; upd(); }));
 
-      body.appendChild(h4('✂️ Freisteller'));
+      body.appendChild(h4('Freisteller'));
       const cutB = document.createElement('button');
       cutB.className = 'wide primary';
-      cutB.textContent = sel.cutout ? '✂️ Freisteller nachbessern' : '✂️ Hintergrund entfernen';
+      cutB.textContent = sel.cutout ? 'Freisteller nachbessern' : 'Hintergrund entfernen';
       cutB.onclick = () => SS.cutout.open(sel);
       body.appendChild(cutB);
       if (sel.imgIdOrig) {
@@ -1540,7 +1540,7 @@ SS.ui = {};
       body.appendChild(h4('Zuschnitt'));
       const cropB = document.createElement('button');
       cropB.className = 'wide primary';
-      cropB.textContent = '⧉ Zuschneiden, drehen, begradigen';
+      cropB.textContent = 'Zuschneiden, drehen, begradigen';
       cropB.onclick = () => SS.crop.open(sel);
       body.appendChild(cropB);
       if (sel.crop && sel.crop.rect) {
@@ -1564,7 +1564,7 @@ SS.ui = {};
       body.appendChild(h4('Allgemein'));
       const repl = document.createElement('label');
       repl.className = 'wide btn-like';
-      repl.textContent = '🔄 Foto ersetzen (Einstellungen bleiben)';
+      repl.textContent = 'Foto ersetzen (Einstellungen bleiben)';
       const rin = document.createElement('input');
       rin.type = 'file'; rin.accept = 'image/*'; rin.className = 'file-overlay';
       rin.addEventListener('change', async (e) => {
@@ -1590,7 +1590,7 @@ SS.ui = {};
       flipB.onclick = () => { sel.flip = !sel.flip; SS.photoCacheClear(sel.id); SS.invalidateEl(sel); SS.pushHistory(); SS.requestRender(); };
       body.appendChild(flipB);
       const copyB = document.createElement('button'); copyB.className = 'wide';
-      copyB.textContent = '📋 Stil auf alle Fotos übertragen';
+      copyB.textContent = 'Stil auf alle Fotos übertragen';
       copyB.onclick = () => {
         for (const el of st.elements) {
           if (el.type === 'photo' && el.id !== sel.id) {
@@ -1634,8 +1634,8 @@ SS.ui = {};
 
       body.appendChild(h4('Füllung'));
       body.appendChild(chips([
-        { id: 'none', name: 'Einfarbig' }, { id: 'gold', name: '✨ Gold' },
-        { id: 'neon', name: '💡 Neon' }, { id: '3d', name: '3D' },
+        { id: 'none', name: 'Einfarbig' }, { id: 'gold', name: 'Gold' },
+        { id: 'neon', name: 'Neon' }, { id: '3d', name: '3D' },
       ], e => (sel.fill || 'none') === e.id, e => { sel.fill = e.id; SS.requestRender(); }));
 
       body.appendChild(h4('Kontur, Schatten & Leuchten'));
@@ -1687,7 +1687,7 @@ SS.ui = {};
       mirrorB.title = 'Klappt den Text auf die andere Seite der nächsten Schnittkante';
       mirrorB.onclick = () => { SS.ui.mirrorAtCut(sel); };
       const moveB = document.createElement('button');
-      moveB.textContent = '➡ Automatisch verschieben';
+      moveB.textContent = 'Automatisch verschieben';
       moveB.title = 'Schiebt den Text vollständig in eine Slide';
       moveB.onclick = () => { SS.ui.moveOffCut(sel); };
       cutRow.appendChild(mirrorB); cutRow.appendChild(moveB);
@@ -1705,7 +1705,7 @@ SS.ui = {};
 
       const cpT = document.createElement('button');
       cpT.className = 'wide';
-      cpT.textContent = '📋 Text-Stil auf alle Texte übertragen';
+      cpT.textContent = 'Text-Stil auf alle Texte übertragen';
       cpT.onclick = () => {
         const keys = ['font', 'size', 'color', 'bold', 'italic', 'align', 'letterSpacing', 'lineHeight',
           'fill', 'hollow', 'outline', 'outlineColor', 'outlineWidth', 'shadow', 'shadowColor',
@@ -1758,7 +1758,7 @@ SS.ui = {};
       ], f => (sel.shape || 'rect') === f.id, f => { sel.shape = f.id; SS.requestRender(); }));
       body.appendChild(h4('Wirkung'));
       const pxRow = document.createElement('div'); pxRow.className = 'chips';
-      [['🌫 Weichzeichnen', false], ['▦ Pixel', true]].forEach(([n, v]) => {
+      [['Weichzeichnen', false], ['Pixel', true]].forEach(([n, v]) => {
         const b = document.createElement('button'); b.textContent = n;
         if (!!sel.pixelate === v) b.classList.add('sel');
         b.onclick = () => { sel.pixelate = v; SS.pushHistory('Privacy'); SS.ui.showProps(); SS.requestRender(); };

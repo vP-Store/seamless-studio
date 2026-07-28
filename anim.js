@@ -48,12 +48,12 @@
      Die Bibliothek. group = Reiter in der Oberfläche.
      ================================================================ */
   SS.ANIM_GROUPS = [
-    { id: 'bounce', name: '🏀 Hüpfen' },
-    { id: 'wiggle', name: '〰 Wiggle' },
-    { id: 'beat',   name: '💗 Herzschlag' },
-    { id: 'glow',   name: '✨ Leuchten' },
-    { id: 'move',   name: '☁ Bewegen' },
-    { id: 'spin',   name: '↻ Drehen' },
+    { id: 'bounce', name: 'Hüpfen' },
+    { id: 'wiggle', name: 'Wackeln' },
+    { id: 'beat',   name: 'Herzschlag' },
+    { id: 'glow',   name: 'Leuchten' },
+    { id: 'move',   name: 'Bewegen' },
+    { id: 'spin',   name: 'Drehen' },
   ];
 
   SS.ANIMS = [

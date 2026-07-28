@@ -21,7 +21,7 @@
     const v = $('expType').value;
     $('expImgOpts').classList.toggle('hidden', v === 'video');
     $('expVidOpts').classList.toggle('hidden', v !== 'video');
-    $('expShare').textContent = v === 'video' ? '📤 Video teilen → Instagram' : '📤 Teilen → Instagram';
+    $('expShare').textContent = v === 'video' ? 'Video teilen → Instagram' : 'Teilen → Instagram';
     $('expPanoRow').classList.toggle('hidden', v !== 'zip');
     $('expFormatsRow').classList.toggle('hidden', v === 'video');
     syncInfo();
@@ -39,7 +39,7 @@
     const parts = [];
     parts.push(`${n} Slides à ${Math.round(slideW * scale)}×${Math.round(slideH * scale)} px`);
     if (!SS.areaOk(slideW * scale, slideH * scale)) {
-      parts.push('⚠️ Diese Qualität ist für eine einzelne Slide zu groß – bitte niedriger wählen.');
+      parts.push('Diese Qualität ist für eine einzelne Slide zu groß – bitte niedriger wählen.');
     } else if ($('expType').value === 'zip' && $('expPano').checked && panoArea > SS.MAX_CANVAS_AREA) {
       const k = SS.fitScale(W, H, scale);
       parts.push(`Panorama wird auf ${Math.round(W * k)}×${Math.round(H * k)} px verkleinert (Gerätegrenze).`);
