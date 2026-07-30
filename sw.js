@@ -1,5 +1,5 @@
 /* Seamless Studio – Service Worker (offline cache) */
-const VERSION = 'ss-v6.3.3';
+const VERSION = 'ss-v6.4.0';
 const ASSETS = [
   './',
   './index.html',
@@ -47,6 +47,12 @@ const ASSETS = [
   './studio5.js',
   './symbole7_daten.js',
   './symbole7.js',
+  './blumen7_daten.js',
+  './blumen7.js',
+  './rahmen7.js',
+  './videoleinwand7.js',
+  './vorlagen7.js',
+  './videokarussell7.js',
   './fix631.js',
   './icon-192.png',
   './icon-512.png',

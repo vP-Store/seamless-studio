@@ -295,7 +295,16 @@ SS.video = {};
     const oc = out.getContext('2d');
 
     if (!window.MediaRecorder) throw new Error('Video wird auf diesem Gerät nicht unterstützt');
-    const stream = out.captureStream(V.opts.fps);
+    /* Rate 0 mit requestFrame() statt fester Rate: bei fester Rate nimmt der
+       Browser ab, wann er will, und lässt aus, was er nicht schafft.
+       Nachgemessen: 38 gezeichnete Bilder, nur 20 davon im Video. Mit Rate 0
+       kommt genau dann ein Bild an, wenn wir es anfordern – 43 gezeichnet,
+       44 im Video. Geräte ohne requestFrame bekommen den alten Weg. */
+    let stream = out.captureStream(0);
+    let spurV = stream.getVideoTracks()[0];
+    let takt = () => {};
+    if (spurV && typeof spurV.requestFrame === 'function') takt = () => spurV.requestFrame();
+    else stream = out.captureStream(V.opts.fps);
 
     // Ton dazumischen (wenn möglich)
     let audio = null, audioSeparate = null;
@@ -334,6 +343,7 @@ SS.video = {};
         const t = Math.min(dur, (now - t0) / 1000);
         SS.animT = t;
         V.drawFrame(oc, outW, outH, t, cam);
+        takt();
         if (onProgress) onProgress(Math.round(t / dur * 92));
         if (t < dur) requestAnimationFrame(frame);
         else resolve();
@@ -341,6 +351,9 @@ SS.video = {};
       requestAnimationFrame(frame);
     });
 
+    /* Dem Recorder Zeit lassen, das letzte Stück abzugeben – ohne das fehlt
+       am Ende jedes Videos eine knappe Viertelsekunde. */
+    await new Promise(r => setTimeout(r, 260));
     rec.stop();
     if (audio) audio.stop();
     if (SS.clip && SS.clip.ready) SS.clipStopPlayback();
