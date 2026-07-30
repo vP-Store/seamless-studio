@@ -216,6 +216,7 @@
       for (const s of SS.STICKERS) if (s.cat === catId) bild(s.id);
     }
 
+    let zuletzt = null;
     for (const k of KATS) {
       if (tabs.querySelector(`[data-cat="${k.id}"]`)) continue;
       const b = document.createElement('button');
@@ -223,10 +224,14 @@
       b.textContent = k.name;
       b.onclick = () => zeige(k.id, b);
       /* Hinter „Funkeln" einsortieren statt ganz ans Ende: die Reiterzeile
-         ist schon lang, und was hinten liegt, findet niemand. */
-      const nach = tabs.querySelector('[data-cat="funkeln"]');
-      if (nach && nach.nextSibling) tabs.insertBefore(b, nach.nextSibling);
+         ist schon lang, und was hinten liegt, findet niemand. Dabei hinter
+         den ZULETZT eingefuegten haengen – sonst dreht sich die Reihenfolge
+         um, weil jeder neue Knopf direkt hinter „Funkeln" landet. */
+      const anker = zuletzt || tabs.querySelector('[data-cat="funkeln"]');
+      if (anker && anker.nextSibling) tabs.insertBefore(b, anker.nextSibling);
+      else if (anker) tabs.appendChild(b);
       else tabs.appendChild(b);
+      zuletzt = b;
     }
 
     /* Die Kacheln zeichnen sich beim Anlegen; solange eine Maske fehlt,
