@@ -890,5 +890,269 @@
     bericht.ruhelage = { funktionen: 'animAutoPhase, animAufRuhelage', beweis };
   })();
 
+  /* ========================================================================
+     14. Die Bildrate im Video ist ein Versprechen, keine Zusage
+
+     V.opts.fps steht fest auf 30 und landet nur an einer Stelle:
+
+        const stream = out.captureStream(V.opts.fps);
+
+     Das ist die Obergrenze, die der Leinwand erlaubt wird – nicht das, was
+     hinterher in der Datei steht. Aufgenommen wird in Echtzeit ueber
+     requestAnimationFrame, und der Kodierer nimmt, was er schafft.
+
+     Nachgemessen an derselben Szene, jeweils 6 Sekunden, 1080x1350:
+
+        eingestellt 30 fps  ->  53 Bilder in 5,830 s  =   9,09 fps
+        eingestellt 60 fps  ->  59 Bilder in 5,886 s  =  10,02 fps
+
+     Die Einstellung zu verdoppeln bringt also fast nichts. Der Engpass ist
+     nicht das Zeichnen – V.drawFrame kostet hier 9,5 ms, das reichte fuer
+     105 fps – sondern der Kodierer: ohne Hardware-Unterstuetzung faellt
+     MediaRecorder auf VP9 in Software zurueck, und der schafft bei dieser
+     Groesse rund 10 Bilder je Sekunde. Auf einem Geraet mit Hardware-H.264
+     sieht das ganz anders aus.
+
+     Das eigentliche Problem ist nicht die Zahl, sondern dass niemand sie
+     erfaehrt: die Datei kommt heraus, sieht ruckelig aus, und die App sagt
+     nichts. Deshalb zwei Ergaenzungen:
+
+     a) Die Bildrate wird im Exportfenster waehlbar (24 / 30 / 50 / 60).
+     b) Nach jedem Videoexport wird die tatsaechlich gelieferte Bildrate
+        gemessen – der fertige Film wird dafuer in einem verborgenen
+        <video> im Schnelldurchlauf abgespielt und ueber
+        requestVideoFrameCallback jedes Bild gezaehlt. Bleibt das Ergebnis
+        deutlich unter dem Gewuenschten, sagt ein Hinweis, woran es liegt.
+     ==================================================================== */
+  (function () {
+    const V = SS.video;
+    if (!V || typeof V.exportVideo !== 'function') { bericht.bildrate = 'kein Videoexport'; return; }
+
+    /* ---------- a) Bildrate im Exportfenster waehlbar ---------- */
+    const FPS = [24, 30, 50, 60];
+    function reiheBauen() {
+      const box = SS.el('expVidOpts');
+      if (!box || SS.el('expVidFps')) return false;
+      const zeile = document.createElement('div');
+      zeile.className = 'ctl';
+      const label = document.createElement('span');
+      label.textContent = 'Bildrate';
+      const sel = document.createElement('select');
+      sel.id = 'expVidFps';
+      for (const f of FPS) {
+        const o = document.createElement('option');
+        o.value = String(f);
+        o.textContent = f + ' Bilder/s' + (f === 30 ? ' (Standard)' : f >= 50 ? ' – fuer schnelle Bewegung' : ' – Kinolook');
+        if (f === (V.opts.fps || 30)) o.selected = true;
+        sel.appendChild(o);
+      }
+      sel.addEventListener('change', () => { V.opts.fps = +sel.value; });
+      zeile.appendChild(label); zeile.appendChild(sel);
+      /* vor den Hinweistext, damit die Erklaerung darunter stehen bleibt */
+      const hinweis = box.querySelector('p.hint');
+      box.insertBefore(zeile, hinweis || null);
+      return true;
+    }
+    let reiheDa = reiheBauen();
+    if (!reiheDa) {
+      /* Das Fenster wird erst beim ersten Oeffnen vollstaendig aufgebaut */
+      const knopf = SS.el('btnExport');
+      if (knopf) knopf.addEventListener('click', () => {
+        setTimeout(() => { reiheDa = reiheBauen(); }, 60);
+      });
+    }
+
+    /* ---------- b) gelieferte Bildrate wirklich messen ---------- */
+    const MESS_SEK = 2.0;          // so lange wird wirklich abgespielt
+    SS.video.bildratenProbe = function (blob, grenzeMs) {
+      return new Promise((fertig) => {
+        let schonFertig = false;
+        let url = null, vid = null, zeit = null;
+        const aufraeumen = (erg) => {
+          if (schonFertig) return;
+          schonFertig = true;
+          if (zeit) clearTimeout(zeit);
+          try { if (vid) { vid.pause(); vid.removeAttribute('src'); vid.load(); vid.remove(); } } catch (e) {}
+          try { if (url) URL.revokeObjectURL(url); } catch (e) {}
+          fertig(erg);
+        };
+        try {
+          vid = document.createElement('video');
+          if (typeof vid.requestVideoFrameCallback !== 'function') {
+            return aufraeumen({ messbar: false, grund: 'requestVideoFrameCallback fehlt' });
+          }
+          vid.muted = true; vid.playsInline = true;
+          vid.style.cssText = 'position:fixed;left:-9999px;width:2px;height:2px;opacity:0';
+          url = URL.createObjectURL(blob);
+          vid.src = url;
+          document.body.appendChild(vid);
+
+          let bilder = 0, ersteZeit = null, letzteZeit = null;
+          const naechstes = () => vid.requestVideoFrameCallback((now, meta) => {
+            bilder++;
+            const mt = meta && meta.mediaTime;
+            if (typeof mt === 'number') {
+              if (ersteZeit === null) ersteZeit = mt;
+              letzteZeit = mt;
+            }
+            /* Ein kurzes Stueck reicht: die Bildrate ist ueber den Film
+               konstant, und der Export soll nicht warten muessen. */
+            if (letzteZeit !== null && ersteZeit !== null && letzteZeit - ersteZeit >= MESS_SEK) {
+              return auswerten();
+            }
+            if (!vid.ended) naechstes();
+          });
+
+          const auswerten = () => {
+            const spanne = (letzteZeit !== null && ersteZeit !== null)
+              ? letzteZeit - ersteZeit : (vid.duration || 0);
+            aufraeumen({
+              messbar: bilder > 1 && spanne > 0.05,
+              bilder,
+              dauer: +(+spanne).toFixed(3),
+              fps: spanne > 0.05 ? +(( bilder - 1) / spanne).toFixed(2) : null,
+            });
+          };
+
+          vid.addEventListener('ended', auswerten, { once: true });
+          vid.addEventListener('loadedmetadata', () => {
+            /* In normaler Geschwindigkeit abspielen, aber nur ein kurzes
+               Stueck. Ein Schnelldurchlauf waere verlockend, misst aber
+               falsch: requestVideoFrameCallback meldet nur DARGESTELLTE
+               Bilder, und bei achtfachem Tempo laesst der Compositor welche
+               aus. Nachgemessen an derselben Datei: Schnelldurchlauf 3,69,
+               normales Tempo 13,03 – ffprobe sagt 13,03. */
+            naechstes();
+            const p = vid.play();
+            if (p && p.catch) p.catch(() => auswerten());
+          }, { once: true });
+
+          zeit = setTimeout(auswerten, grenzeMs || (MESS_SEK * 1000 + 2500));
+        } catch (e) {
+          aufraeumen({ messbar: false, grund: String(e && e.message || e).slice(0, 90) });
+        }
+      });
+    };
+
+    const altExport = V.exportVideo;
+    V.exportVideo = async function (onProgress) {
+      const gewuenscht = V.opts.fps || 30;
+      const res = await altExport.apply(this, arguments);
+      try {
+        if (res && res.blob && res.blob.size) {
+          const probe = await SS.video.bildratenProbe(res.blob);
+          bericht.bildrate = { gewuenscht, gemessen: probe };
+          if (probe && probe.messbar && probe.fps && probe.fps < gewuenscht * 0.8) {
+            SS.toast(`Video mit ${probe.fps} statt ${gewuenscht} Bildern/s – dein Geraet kommt `
+              + 'beim Kodieren nicht mit. Kuerzere Dauer oder kleinere Ausgabe hilft.',
+              6000, 'warn');
+          }
+        }
+      } catch (e) {
+        bericht.bildrate = { gewuenscht, fehler: String(e && e.message || e).slice(0, 90) };
+      }
+      return res;
+    };
+
+    bericht.bildrate = { gewuenscht: V.opts.fps || 30, gemessen: 'noch kein Export' };
+    bericht.bildrateWahl = FPS.join('/') + ' fps im Exportfenster';
+  })();
+
+  /* ========================================================================
+     15. Vier Anordnungen stapeln Fotos exakt aufeinander
+
+     Nachweis ueber SS.paintScene: die Funktion nimmt eine Menge `skip`. Wird
+     die Szene einmal vollstaendig und einmal ohne ein bestimmtes Foto
+     gezeichnet und aendert sich dabei kein einziges Pixel, dann traegt dieses
+     Foto nichts zum Bild bei. Gemessen auf 1200 px Breite:
+
+        randlos        12 Fotos / 6 Slides   ->  6 von 12 ohne jede Wirkung
+        vorstellung    12 Fotos / 6 Slides   ->  6 von 12 ohne jede Wirkung
+        schritte        9 Fotos / 5 Slides   ->  4 von  9 ohne jede Wirkung
+        vorhernachher   5 Fotos / 3 Slides   ->  3 von  5 ohne jede Wirkung
+
+     Die Ursache steht in layouts6.js und ist in drei Faellen dieselbe Zeile:
+
+        const sp = Math.min(k.n - 1, i);
+
+     Die Klemme soll verhindern, dass Fotos hinter der letzten Slide landen.
+     Sie sorgt aber dafuer, dass ab i = n JEDES weitere Foto exakt dieselbe
+     Position bekommt. `vorhernachher` hat von vornherein nur zwei Plaetze
+     (x bei 0,26 und 0,74 der Breite), also landet Foto 3 exakt auf Foto 1.
+
+     Fuer die Nutzerin sieht das so aus: Anordnung antippen, die Haelfte der
+     Fotos ist weg. Sie stehen weiter im Ebenen-Panel, sind aber unsichtbar.
+
+     Behebung, ohne eine einzige Anordnung neu zu erfinden: `place` wird
+     umschlossen. Vor dem Setzen werden alle Positionen einmal durchgerechnet;
+     Fotos, die auf demselben Platz landen, werden innerhalb ihrer Slide
+     nebeneinander aufgefaechert und etwas verkleinert – so wie es die
+     Anordnung `duo` von Hand macht. Gibt es keine Doppelbelegung, bleibt
+     alles auf das Pixel genau wie vorher.
+     ==================================================================== */
+  (function () {
+    if (!SS.LAYOUTS || !SS.LAYOUTS.length) { bericht.stapel = 'keine Anordnungen'; return; }
+
+    const schluessel = (p, k) =>
+      Math.round((p.x || 0) / Math.max(1, k.slideW * 0.02)) + ':' +
+      Math.round((p.y || 0) / Math.max(1, k.H * 0.02)) + ':' +
+      Math.round((p.h || 0) / Math.max(1, k.H * 0.02));
+
+    let umschlossen = 0;
+    for (const L of SS.LAYOUTS) {
+      const alt = L.place;
+      if (typeof alt !== 'function') continue;
+      L.place = function (i, N, k) {
+        const eigen = alt.call(this, i, N, k);
+        if (!eigen || !N || N < 2) return eigen;
+
+        /* Alle Plaetze einmal durchrechnen und Doppelbelegungen finden.
+           Das Ergebnis haengt nur von (N, k) ab, deshalb wird es gemerkt. */
+        const merkschluessel = N + '|' + k.W + 'x' + k.H + 'x' + k.n;
+        if (L._stapelCache !== merkschluessel) {
+          const gruppen = new Map();
+          for (let j = 0; j < N; j++) {
+            let p = null;
+            try { p = alt.call(L, j, N, k); } catch (e) { p = null; }
+            if (!p) continue;
+            const s = schluessel(p, k);
+            if (!gruppen.has(s)) gruppen.set(s, []);
+            gruppen.get(s).push(j);
+          }
+          const platz = {};
+          for (const [, liste] of gruppen) {
+            if (liste.length < 2) continue;
+            liste.forEach((j, rang) => { platz[j] = { rang, von: liste.length }; });
+          }
+          L._stapelCache = merkschluessel;
+          L._stapelPlatz = platz;
+        }
+
+        const eintrag = L._stapelPlatz && L._stapelPlatz[i];
+        if (!eintrag) return eigen;
+
+        /* Auffaechern: nebeneinander innerhalb der Slide, leicht versetzt in
+           der Hoehe, und so weit verkleinert, dass alle nebeneinander passen. */
+        const m = eintrag.von;
+        const anteil = m === 1 ? 0.5 : eintrag.rang / (m - 1);        // 0 … 1
+        const spanne = Math.min(0.78, 0.30 + 0.12 * m);               // Anteil der Slide
+        const versatz = (anteil - 0.5) * k.slideW * spanne;
+        const kleiner = 1 / Math.sqrt(m);
+        const p = Object.assign({}, eigen);
+        p.x = eigen.x + versatz;
+        p.y = eigen.y + (eintrag.rang % 2 ? 1 : -1) * k.H * 0.045;
+        p.h = (eigen.h || k.H * 0.5) * Math.max(0.42, kleiner);
+        p.rot = (eigen.rot || 0) + (eintrag.rang % 2 ? 2.5 : -2.5);
+        /* nicht ueber den Leinwandrand schieben */
+        const halb = (p.h || 0) * 0.5;
+        p.x = Math.max(halb * 0.4, Math.min(k.W - halb * 0.4, p.x));
+        p.y = Math.max(halb * 0.55, Math.min(k.H - halb * 0.55, p.y));
+        return p;
+      };
+      umschlossen++;
+    }
+    bericht.stapel = umschlossen + ' Anordnungen gegen Doppelbelegung abgesichert';
+  })();
+
   SS.FIX631 = bericht;
 })();
