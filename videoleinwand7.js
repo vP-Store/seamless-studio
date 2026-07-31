@@ -35,6 +35,11 @@
     t0: 0,
     kacheln: [],               // zusaetzliche <video>-Elemente
     bereitStand: null,
+    /* Haken fuer die weiche Schleife (schleife7.js): bekommt den Kachelindex
+       und liefert {q, alpha} – ein zweites Videoelement, das mit alpha ueber
+       die Kachel gelegt wird –, oder null. So bleibt die Ueberblendung Teil
+       der normalen Band-Maskierung, statt von aussen daneben zu malen. */
+    blendFuer: null,
   };
 
   function quelleVon() {
@@ -181,7 +186,14 @@
     const cl = SS.clip;
     if (!cl || !cl.ready || VL.modus === 'fuellen') return alt.apply(this, arguments);
     const haupt = quelleVon();
-    if (!haupt || haupt.readyState < 2) return alt.apply(this, arguments);
+    if (!haupt) return alt.apply(this, arguments);
+    /* WICHTIG: bei readyState < 2 NICHT auf die Cover-Fuellung zurueckfallen.
+       Waehrend das Hauptvideo springt (weiche Schleife, Spulen), faellt sein
+       readyState kurz auf 1 – der Rueckfall malte dann das ganze Panorama
+       schwarz, einen Frame lang, und genau das war der sichtbare "Sprung".
+       Der Zeit-Renderer unten kommt mit einer kurz abwesenden Quelle klar:
+       die Kacheln zeichnen, was da ist, und die Blende traegt derweil das
+       Bild der betroffenen Kachel. */
 
     const k = SS.canvasSize();
     const n = Math.max(1, k.n);
@@ -196,11 +208,23 @@
          Kachel gespiegelt, dadurch stossen gleiche Kanten aufeinander. */
       const vw = haupt.videoWidth, vh = haupt.videoHeight;
       const kb = Math.max(8, vw * (H / vh));
-      let x = 0, i = 0;
-      while (x < W) {
-        const b = Math.min(kb, W - x);
-        if (trifft(fenster, x, b)) bildAuf(c, haupt, x, b, H, i % 2 === 1);
-        x += kb; i++;
+      const lage = (quelle) => {
+        let x = 0, i = 0;
+        while (x < W) {
+          const b = Math.min(kb, W - x);
+          if (trifft(fenster, x, b)) bildAuf(c, quelle, x, b, H, i % 2 === 1);
+          x += kb; i++;
+        }
+      };
+      lage(haupt);
+      /* Weiche Schleife: alle Spiegelkacheln zeigen dieselbe Zeit, also
+         reicht EIN Blend-Element ueber alles. */
+      const bl = VL.blendFuer && VL.blendFuer(0);
+      if (bl && bl.q && bl.q.readyState >= 2 && bl.alpha > 0) {
+        const ga = c.globalAlpha;
+        c.globalAlpha = ga * Math.min(1, bl.alpha);
+        lage(bl.q);
+        c.globalAlpha = ga;
       }
       c.restore();
       return;
@@ -226,15 +250,34 @@
     };
     const platzVon = (i) => ({ px: i * slideW - ueber / 2, pb: slideW + ueber });
 
+    /* Eine Kachel zeichnen: erst ihr eigenes Element, darueber – falls die
+       weiche Schleife gerade laeuft – das Blend-Element mit alpha. Beides
+       durch denselben Ausschnitt, dadurch gilt die Band-Maskierung fuer
+       beide gleichermassen. Waehrend das eigene Element springt (seeking,
+       readyState faellt kurz), traegt das Blend-Element allein das Bild –
+       deshalb wird es auch dann gemalt, wenn das eigene aussetzt. */
+    const kachelAuf = (ctx, i, px, pb, sx, sb) => {
+      const m = ((i % n) + n) % n;
+      const q = quelleVonKachel(m);
+      let da = false;
+      if (q && q.readyState >= 2) da = bildAuf(ctx, q, px, pb, H, false, sx, sb);
+      const bl = VL.blendFuer && VL.blendFuer(m);
+      if (bl && bl.q && bl.q.readyState >= 2 && bl.alpha > 0) {
+        const ga = ctx.globalAlpha;
+        ctx.globalAlpha = ga * Math.min(1, bl.alpha);
+        if (bildAuf(ctx, bl.q, px, pb, H, false, sx, sb)) da = true;
+        ctx.globalAlpha = ga;
+      }
+      return da;
+    };
+
     /* 1. Kerne */
     for (let i = 0; i < n; i++) {
-      const q = quelleVonKachel(i);
-      if (!q || q.readyState < 2) continue;
       const kx = i * slideW + ueber / 2;
       const kb = slideW - ueber;
       if (kb <= 0 || !trifft(fenster, kx, kb)) continue;
       const p = platzVon(i);
-      bildAuf(c, q, p.px, p.pb, H, false, kx, kb);
+      kachelAuf(c, i, p.px, p.pb, kx, kb);
     }
 
     /* 2. Baender an den Schnittkanten – Kachel i-1 liegt unten, Kachel i
@@ -243,9 +286,6 @@
     const puffer = bandPuffer(Math.ceil(ueber), Math.ceil(H));
     const pc = puffer.getContext('2d');
     for (let i = 0; i < n; i++) {
-      const rechts = quelleVonKachel(i);
-      const links = quelleVonKachel(i - 1);
-      if (!rechts || !links || rechts.readyState < 2 || links.readyState < 2) continue;
       const bx = i * slideW - ueber / 2;
       const stellen = [bx];
       if (bx < 0) stellen.push(bx + W);
@@ -258,7 +298,7 @@
       /* rechte Kachel in den Puffer, im Puffer verschoben um -bx */
       const pr = platzVon(i);
       pc.translate(-bx, 0);
-      bildAuf(pc, rechts, pr.px, pr.pb, H, false, bx, ueber);
+      const rechtsDa = kachelAuf(pc, i, pr.px, pr.pb, bx, ueber);
       pc.setTransform(1, 0, 0, 1, 0, 0);
       /* weich einblenden: links durchsichtig, rechts voll */
       pc.globalCompositeOperation = 'destination-in';
@@ -273,8 +313,8 @@
       for (const x of stellen) {
         if (!trifft(fenster, x, ueber)) continue;
         /* Untergrund: die linke Kachel, an ihrer eigenen Stelle */
-        bildAuf(c, links, pl.px + (x - bx), pl.pb, H, false, x, ueber);
-        c.drawImage(puffer, x, 0);
+        kachelAuf(c, i - 1, pl.px + (x - bx), pl.pb, x, ueber);
+        if (rechtsDa) c.drawImage(puffer, x, 0);
       }
     }
     c.restore();
@@ -319,16 +359,16 @@
         const n = (clip || fmt === '9:16') ? 1 : SS.state.slides;
 
      Damit war ein Video-Karussell bisher gar nicht moeglich – die Leinwand
-     klappte auf eine Slide zusammen. Fuer „fuellen" bleibt das so, denn ein
-     einzelnes cover-gefuelltes Video ueber fuenf Slides waere sinnlos
-     gestreckt. Fuer „spiegel" und „zeit" wird die Klemme aufgehoben: dort
-     ist die Breite ja gerade der Sinn der Sache. */
+     klappte auf eine Slide zusammen. Die Klemme wird fuer ALLE drei Modi
+     aufgehoben (seit v6.5.0 auch fuer „fuellen": ein Video als Hintergrund
+     soll ueber mehrere Slides laufen koennen – die Cover-Fuellung zeigt dann
+     ein breites Band aus der Bildmitte). Nur 9:16 bleibt eine Slide, das
+     Format kennt keine. */
   (function () {
     const altGroesse = SS.canvasSize;
     SS.canvasSize = function () {
       const r = altGroesse.apply(this, arguments);
       if (!(SS.clip && SS.clip.ready)) return r;
-      if (VL.modus !== 'spiegel' && VL.modus !== 'zeit') return r;
       const ov = SS._sizeOverride;
       /* Der Bildexport in ZUSATZFORMATEN klemmt die Slidezahl ebenfalls auf 1
          (exporter.js:139 `SS._sizeOverride.slides = clip ? 1 : slides`). Das
@@ -481,7 +521,10 @@
     SS.ui.syncTop = function () {
       const r = altSync.apply(this, arguments);
       try {
-        const breit = VL.modus === 'spiegel' || VL.modus === 'zeit';
+        /* Seit die Klemme fuer alle Modi aufgehoben ist, gehoert die
+           Slideleiste bei jedem geladenen Clip wieder hin – ausser bei 9:16,
+           das keine Slides kennt. */
+        const breit = !!(SS.clip && SS.clip.ready);
         const el = SS.el('slideCtrl');
         if (el && breit && SS.state.format !== '9:16') el.style.display = 'flex';
         if (breit) {
@@ -514,7 +557,7 @@
 
     const MODI = [
       { id: 'fuellen', name: 'Füllen',
-        hint: 'Wie bisher: ein Bild über die ganze Fläche, oben und unten beschnitten. Eine Slide.' },
+        hint: 'Ein Bild über die ganze Fläche – auch über mehrere Slides. Oben und unten wird beschnitten.' },
       { id: 'spiegel', name: 'Spiegeln',
         hint: 'Das Bild wird gekachelt, jede zweite Kachel gespiegelt. Kante trifft auf Kante – nahtlos. Gut für Muster, Wasser, Wolken.' },
       { id: 'zeit', name: 'Zeitpanorama',
@@ -558,9 +601,12 @@
       VL.schleifenprobe().then(r => {
         if (!r || !isFinite(r.faktor)) { p.textContent = ''; return; }
         const f = r.faktor;
+        const weich = SS.schleife && SS.schleife.aktiv && SS.schleife.dauer;
         p.textContent = f < 1.6
           ? `Schleifenprobe: Faktor ${f.toFixed(1)} – dein Video läuft rund, die Schleife ist unsichtbar.`
-          : `Schleifenprobe: Faktor ${f.toFixed(1)} – das Video endet anders als es anfängt. Beim Wiederholen entsteht dort ein Sprung. Kürze den Ausschnitt so, dass Anfang und Ende gleich aussehen.`;
+          : weich
+            ? `Schleifenprobe: Faktor ${f.toFixed(1)} – das Video endet anders als es anfängt. Die App überblendet den Übergang deshalb weich (${SS.schleife.dauer().toFixed(1)} s) – die Schleife schließt sich ohne Sprung.`
+            : `Schleifenprobe: Faktor ${f.toFixed(1)} – das Video endet anders als es anfängt. Beim Wiederholen entsteht dort ein Sprung. Kürze den Ausschnitt so, dass Anfang und Ende gleich aussehen.`;
       }).catch(() => { p.textContent = ''; });
     }
 

@@ -71,7 +71,7 @@
                 '<path d="M19 13.5v7l6-3.5z" fill="currentColor"/></svg>' +
               '</span>' +
               '<b>Als Hintergrund über die ganze Fläche</b>' +
-              '<small id="vzWarn">Das Video füllt die Leinwand. Achtung: dabei wird aus dem Carousel <b>eine einzige Slide</b>.</small>' +
+              '<small id="vzWarn">Das Video füllt die Leinwand – über alle Slides hinweg.</small>' +
             '</button>' +
           '</div>' +
         '</div>' +
@@ -96,7 +96,8 @@
     const warn = $('vzWarn');
     if (warn) {
       warn.innerHTML = n > 1
-        ? 'Das Video füllt die Leinwand. Achtung: aus deinen <b>' + n + ' Slides wird eine einzige</b>.'
+        ? 'Das Video füllt die Leinwand – über alle <b>' + n + ' Slides</b> hinweg. '
+          + 'Danach im Video-Tab „Zeitpanorama" oder „Spiegeln" wählen, dort sind die Nähte am schönsten.'
         : 'Das Video füllt die Leinwand.';
     }
 
@@ -141,7 +142,7 @@
       SS.ui.showProps && SS.ui.showProps();
       SS.requestRender();
       SS.toast(n > 1
-        ? 'Clip liegt jetzt als Hintergrund – aus ' + n + ' Slides wurde eine'
+        ? 'Clip liegt jetzt als Hintergrund über deinen ' + n + ' Slides'
         : 'Clip liegt jetzt als Hintergrund', 4000, 'ok',
         { label: 'Rückgängig', fn: () => { SS.undo && SS.undo(); } });
     } catch (e) {

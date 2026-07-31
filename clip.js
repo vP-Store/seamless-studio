@@ -27,11 +27,17 @@
           video: v, url, dur, start: 0, end: dur, ready: true,
           w: v.videoWidth || 1080, h: v.videoHeight || 1920, name: file.name,
         };
-        // Format an das Seitenverhältnis des Clips anpassen
-        const ar = SS.clip.w / SS.clip.h;
-        const best = [['9:16', 1080 / 1920], ['1:1', 1], ['4:5', 1080 / 1350]]
-          .sort((a, b) => Math.abs(a[1] - ar) - Math.abs(b[1] - ar))[0][0];
-        SS.state.format = best;
+        // Format an das Seitenverhältnis des Clips anpassen – aber NUR, wenn
+        // nicht gerade ein mehrslidiges Carousel gebaut wird. Sonst warf ein
+        // Handyvideo (9:16) das Format um und klappte das Panorama auf eine
+        // einzige Slide zusammen, obwohl das Video als Hintergrund über alle
+        // Slides laufen sollte. (v6.5.0)
+        if (!(SS.state.slides > 1 && SS.state.format !== '9:16')) {
+          const ar = SS.clip.w / SS.clip.h;
+          const best = [['9:16', 1080 / 1920], ['1:1', 1], ['4:5', 1080 / 1350]]
+            .sort((a, b) => Math.abs(a[1] - ar) - Math.abs(b[1] - ar))[0][0];
+          SS.state.format = best;
+        }
         SS.ui.syncTop();
         v.currentTime = 0;
         const go = () => { SS.ui.zoomFit(); SS.requestRender(); resolve(SS.clip); };

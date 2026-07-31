@@ -54,7 +54,14 @@
     const opt = Object.assign({ fps: V.opts.fps || 30, quality: V.opts.quality || 1 }, o || {});
     const cl = SS.clip;
     const dauerVoll = cl && cl.ready ? Math.max(1, (cl.end || cl.dur) - (cl.start || 0)) : V.opts.dur;
-    const dur = Math.max(1, Math.min(30, opt.dur || +dauerVoll.toFixed(2)));
+    let dur = Math.max(1, Math.min(30, opt.dur || +dauerVoll.toFixed(2)));
+    /* Steht der Regler nahe an der schleifenfesten Periode T − f (weiche
+       Schleife aktiv), wird exakt sie genommen: nur bei genau dieser Laenge
+       zeigt das Videoende wieder das Bild vom Anfang. */
+    if (SS.schleife && SS.schleife.aktiv && SS.schleife.periode) {
+      const P = SS.schleife.periode();
+      if (P >= 1 && P <= 30 && Math.abs(dur - P) < 0.6) dur = P;
+    }
     const { n, slideW, slideH } = SS.canvasSize();
     if (!window.MediaRecorder) throw new Error('Dieses Gerät kann keine Videos aufnehmen');
     const mime = mimeWaehlen();
@@ -155,7 +162,7 @@
     box.innerHTML =
       '<h3 style="margin:14px 0 6px">Karussell-Videos</h3>' +
       '<div class="ctl"><span>Länge je Slide</span>' +
-        '<input type="range" id="vkDur" min="2" max="20" step="1" value="6">' +
+        '<input type="range" id="vkDur" min="2" max="20" step="0.5" value="6">' +
         '<span class="val" id="vkDurL">6 s</span></div>' +
       '<button id="vkGo" class="wide primary">Ein Video je Slide aufnehmen</button>' +
       '<div class="progress hidden" id="vkProgress"><div></div></div>' +
@@ -167,11 +174,17 @@
     const dL = document.getElementById('vkDurL');
     dEl.addEventListener('input', () => { dL.textContent = dEl.value + ' s'; });
 
-    /* Vorgabe: die getrimmte Cliplänge. Genau eine Runde schliesst sich. */
+    /* Vorgabe: eine schleifenfeste Runde. Mit weicher Schleife (schleife7.js)
+       ist das die Periode T − f – ein Video genau dieser Laenge zeigt am Ende
+       exakt das Bild vom Anfang, egal wo die Aufnahme beginnt. Ohne sie die
+       getrimmte Cliplaenge wie bisher. */
     const merken = () => {
       const cl = SS.clip;
       if (!cl || !cl.ready) return;
-      const t = Math.max(2, Math.min(20, Math.round((cl.end || cl.dur) - (cl.start || 0))));
+      const roh = (SS.schleife && SS.schleife.aktiv && SS.schleife.periode)
+        ? SS.schleife.periode()
+        : (cl.end || cl.dur) - (cl.start || 0);
+      const t = Math.max(2, Math.min(20, Math.round(roh * 2) / 2));
       dEl.value = String(t); dL.textContent = t + ' s';
     };
     if (SS.ui) {
@@ -185,7 +198,7 @@
       const bar = prog.firstElementChild;
       const { n } = SS.canvasSize();
       if (n < 2) {
-        SS.toast('Nur eine Slide – stell oben „Zeitpanorama" oder „Spiegeln" ein.', 4000);
+        SS.toast('Nur eine Slide – stell oben mehr Slides ein (Format 4:5 oder 1:1).', 4000);
         return;
       }
       knopf.disabled = true;

@@ -544,9 +544,12 @@
     }
     const preset = v.filter && SS.FILTER_PRESETS.find(p => p.id === v.filter);
 
-    /* Fotos setzen – bei einer Video-Vorlage IST der Clip das Bild, da gibt es
-       nichts zu platzieren. Vorhandene Fotos bleiben liegen, wo sie sind. */
-    const fotos = v.video ? [] : st.elements.filter(e => (e.type === 'photo' || e.type === 'video')
+    /* Fotos setzen – bei einer reinen Video-Vorlage IST der Clip das Bild, da
+       gibt es nichts zu platzieren. Bringt eine Video-Vorlage aber ein
+       eigenes `platz` mit (Misch-Vorlagen in vorlagen75.js: Video als
+       Leinwand, Polaroids darueber), werden die Fotos ganz normal gesetzt.
+       Vorhandene Fotos bleiben sonst liegen, wo sie sind. */
+    const fotos = (v.video && !v.platz) ? [] : st.elements.filter(e => (e.type === 'photo' || e.type === 'video')
       && !e.hidden && !e.locked);
     fotos.forEach((p, i) => {
       const r = v.platz(i, fotos.length, k);
