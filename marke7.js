@@ -152,6 +152,14 @@
     };
   };
 
+  /* Von aussen eine Vorlage dazulegen (Vorlagen-Pack-Import) – erscheint
+     sofort im Raster, ohne Neuladen. */
+  SS.eigeneVorlageDazu = function (v) {
+    eigene.push(v);
+    eigeneMerken();
+    raster();
+  };
+
   function sichern() {
     const name = 'Vorlage ' + (eigene.length + 1);
     eigene.push(Object.assign(SS.szeneEinfrieren(), { name, wann: Date.now() }));

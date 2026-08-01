@@ -1,5 +1,5 @@
 /* Seamless Studio – Service Worker (offline cache) */
-const VERSION = 'ss-v6.7.0';
+const VERSION = 'ss-v7.2.0';
 const ASSETS = [
   './',
   './index.html',
@@ -64,6 +64,25 @@ const ASSETS = [
   './beitrag7.js',
   './projekte7.js',
   './rezept7.js',
+  './vorlagenpack7.js',
+  './textzu7.js',
+  './ueberall7.js',
+  './druck7.js',
+  './mitmach7.js',
+  './launch7.js',
+  './sprache7.js',
+  './takt7.js',
+  './tagebuch7.js',
+  './sprecher7.js',
+  './bewertung7.js',
+  './antwort7.js',
+  './erinnerung7.js',
+  './stickerbib7.js',
+  './zauber7.js',
+  './qr7.js',
+  './audiogramm7.js',
+  './kinetik7.js',
+  './orakel7.js',
   './icon-192.png',
   './icon-512.png',
   './icon-maskable-512.png',

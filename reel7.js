@@ -45,8 +45,9 @@
     const bpm = bpmErmitteln();
     if (bpm > 0) {
       const schritt = 60 / bpm * Math.max(1, (SS.beat && SS.beat.every) || 1);
+      const v = (SS.beat && SS.beat.versatz) || 0;
       for (let i = 0; i < roh.length; i++) {
-        roh[i] = Math.round(roh[i] / schritt) * schritt;
+        roh[i] = Math.round((roh[i] - v) / schritt) * schritt + v;
       }
     }
     const sauber = [];

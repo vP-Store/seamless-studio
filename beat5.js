@@ -35,9 +35,13 @@
     const bpm = bpmOf();
     if (!bpm) return t;
     const beat = (60 / bpm) * Math.max(1, SS.beat.every);
-    const i = Math.floor(t / beat);
-    const frac = (t - i * beat) / beat;
-    return (i + easeOut(Math.min(1, frac * 1.7))) * beat;
+    /* versatz: wo der erste Schlag im Lied liegt (Takt-Erkennung, takt7.js).
+       Standard 0 – dann rechnet alles wie bisher. */
+    const v = SS.beat.versatz || 0;
+    const tv = t - v;
+    const i = Math.floor(tv / beat);
+    const frac = (tv - i * beat) / beat;
+    return (i + easeOut(Math.min(1, frac * 1.7))) * beat + v;
   }
 
   const origDraw = V.drawFrame;

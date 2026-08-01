@@ -66,7 +66,7 @@
      duerfen Fliesstext ohne \n liefern – die App bricht nicht von selbst um,
      also machen wir es hier: gierig Wort fuer Wort, gemessen mit
      SS.measureText. */
-  function umbrechen(el, maxB) {
+  const umbrechen = SS.textUmbrechen = function (el, maxB) {
     if (el.type !== 'text' || !el.content || el.content.indexOf('\n') >= 0) return;
     const m = SS.measureText && SS.measureText(el);
     if (!m || !isFinite(m.w) || m.w <= maxB) return;
@@ -88,7 +88,7 @@
     zeilen.push(zeile);
     el.content = zeilen.join('\n');
     SS.invalidateEl && SS.invalidateEl(el);
-  }
+  };
 
   async function inSzene(d, still) {
     const s = saeubern(d);
