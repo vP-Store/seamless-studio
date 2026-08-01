@@ -212,6 +212,9 @@
         teile.forEach(t => ordner.file(
           `Slide_${String(t.slide).padStart(2, '0')}.${t.ext}`, t.blob));
         const rate = Math.min(...teile.map(t => t.bildrate || 0));
+        if (typeof SS.beitragstext === 'function') {
+          try { ordner.file('Beitrag.txt', SS.beitragstext()); } catch (e) {}
+        }
         ordner.file('Hinweis.txt',
           'Ein Video je Slide.\r\n\r\n' +
           'In Instagram alle Videos in EINEN Beitrag laden, in dieser Reihenfolge.\r\n' +

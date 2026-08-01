@@ -177,6 +177,12 @@
     const curFolder = extraFormats.size ? root.folder(curName) : root;
     cur.blobs.forEach((b, i) => curFolder.file(`Slide_${String(i + 1).padStart(2, '0')}.${cur.ext}`, b));
 
+    /* Beitrags-Paket (beitrag7.js): Bildunterschrift-Entwurf, Hashtags und
+       Alt-Texte als Textdatei mit ins ZIP – wenn das Modul da ist. */
+    if (typeof SS.beitragstext === 'function') {
+      try { root.file('Beitrag.txt', SS.beitragstext()); } catch (e) {}
+    }
+
     if ($('expPano').checked) {
       SS._noAnim = true;
       let pano;
