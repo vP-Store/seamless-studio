@@ -49,6 +49,24 @@
     }
   }
 
+  /* Ein Filmstreifen aus ECHTEN Foto-Slots: `anzahl` Film-Rahmen dicht an
+     dicht entlang einer Achse, wahlweise waagerecht oder senkrecht. So ist
+     der Streifen, der die Schnittkante überquert, kein Deko-Sticker mit
+     leeren Fenstern, sondern nimmt selbst Fotos auf. */
+  function filmstreifenSlots(b, cx, cy, anzahl, h, rotGrad, vertikal) {
+    const ar = 0.72;
+    const rad = (rotGrad || 0) * Math.PI / 180;
+    const schritt = vertikal ? (h + 46) : (h * ar + 46);
+    const ax = vertikal ? -Math.sin(rad) : Math.cos(rad);
+    const ay = vertikal ? Math.cos(rad) : Math.sin(rad);
+    for (let i = 0; i < anzahl; i++) {
+      const t = i - (anzahl - 1) / 2;
+      b.slot(cx + ax * schritt * t, cy + ay * schritt * t, h, ar, rotGrad || 0,
+        { style: 'film', border: 20 });
+    }
+  }
+  SS._filmstreifenSlots = filmstreifenSlots;
+
   /* Rahmen-Kurzformen */
   const POL  = { style: 'polaroid',   border: 22 };
   const POLW = { style: 'polaroid-w', border: 22 };
@@ -119,14 +137,15 @@
         },
       ]);
       jeKante(b, [
-        (e) => b.st('vorne', 'sz-filmband', e * b.sw, H * 0.80, H * 0.53, -8),
+        /* Filmstreifen über der Kante – aus echten Foto-Slots */
+        (e) => filmstreifenSlots(b, e * b.sw, H * 0.80, 3, H * 0.20, -8, false),
         (e) => {
           b.st('hinten', 'sz-vogel', e * b.sw - H * 0.05, H * 0.16, H * 0.05, -4, '#54604f');
           b.st('hinten', 'sz-vogel', e * b.sw + H * 0.06, H * 0.12, H * 0.04, 5, '#54604f');
         },
-        (e) => b.st('vorne', 'sz-filmband', e * b.sw, H * 0.225, H * 0.48, 6),
+        (e) => filmstreifenSlots(b, e * b.sw, H * 0.225, 3, H * 0.185, 6, false),
         (e) => b.st('hinten', 'cloud', e * b.sw, H * 0.13, H * 0.10, 0, '#ffffff', 0.9),
-        (e) => b.st('vorne', 'sz-filmband', e * b.sw, H * 0.78, H * 0.51, 5),
+        (e) => filmstreifenSlots(b, e * b.sw, H * 0.78, 3, H * 0.19, 5, false),
         (e) => b.st('hinten', 'sz-vogel', e * b.sw, H * 0.15, H * 0.05, 0, '#54604f'),
       ]);
       return b;
