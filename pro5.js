@@ -254,6 +254,11 @@
 
   const studio = $('panel-layout');
   if (studio) {
+    /* v7.6: Die Abschnitte „Über alle Slides" und „Filmlook über alles" sind
+       auf Scotts Wunsch aus dem Studio-Panel entfernt. Zeichnen (paintMaster/
+       paintOverlay) und Sichern bleiben erhalten, damit alte Projekte mit
+       gesetzten Werten unverändert aussehen – es gibt nur keine Regler mehr. */
+    if (false) {
     /* --- Master-Elemente --- */
     const h = document.createElement('h3');
     h.textContent = 'Über alle Slides';
@@ -320,6 +325,7 @@
 
     studio.appendChild(h); studio.appendChild(row); studio.appendChild(colRow); studio.appendChild(mHint);
     studio.appendChild(h2); studio.appendChild(texRow); studio.appendChild(amt); studio.appendChild(tHint);
+    }
 
     /* --- Alt-Texte und Kontrast --- */
     const h3 = document.createElement('h3');
