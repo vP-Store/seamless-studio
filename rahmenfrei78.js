@@ -79,13 +79,44 @@
     return schnitt;
   }
 
+  /* Die Quelle waagerecht stauchen oder dehnen, OHNE zu beschneiden.
+     Gebraucht für Rahmen mit vorgegebener Form (Kreis, Herz, Stern …): die
+     zeichnen mit `Math.min(w, h)` immer ein Quadrat und füllen das Bild
+     darin selbst formatfüllend auf – über das Zuschnittverhältnis ist an die
+     Bildform dort also nicht heranzukommen. Wird die fertige Karte
+     anschließend gestreckt, hebt diese Vorstauchung die Verzerrung des
+     Bildes exakt wieder auf. Die Form selbst bleibt gestreckt – aus dem
+     Kreis wird eine Ellipse, aus dem Herz ein hohes Herz. Genau so gewollt. */
+  const vorher = document.createElement('canvas');
+  function stauche(src, fx) {
+    const nw = Math.max(2, Math.round(src.width * fx));
+    const nh = Math.max(2, src.height);
+    if (vorher.width !== nw) vorher.width = nw;
+    if (vorher.height !== nh) vorher.height = nh;
+    const c = vorher.getContext('2d');
+    c.clearRect(0, 0, nw, nh);
+    c.drawImage(src, 0, 0, nw, nh);
+    return vorher;
+  }
+
   const origBuildCard = SS.buildCard;
   SS.buildCard = function (el, src, h) {
-    const ziel = el && +el.rahmenAR;
-    if (!ziel || !isFinite(ziel) || ziel <= 0 || !src || !src.width) {
-      return origBuildCard.call(SS, el, src, h);
+    if (!el || !src || !src.width) return origBuildCard.call(SS, el, src, h);
+    let q = src;
+
+    const fx = +el.rahmenVorX;
+    if (fx && isFinite(fx) && fx > 0 && Math.abs(fx - 1) > 0.002) q = stauche(q, fx);
+
+    const ziel = +el.rahmenAR;
+    if (ziel && isFinite(ziel) && ziel > 0) {
+      /* Auf dem gestauchten Bild wirkt das Wunschverhältnis entsprechend mit. */
+      q = beschneide(q, ziel * (fx && isFinite(fx) && fx > 0 ? fx : 1), el.rahmenOX, el.rahmenOY);
     }
-    return origBuildCard.call(SS, el, beschneide(src, ziel, el.rahmenOX, el.rahmenOY), h);
+    if (q === src) return origBuildCard.call(SS, el, src, h);
+
+    /* beschneide() und stauche() teilen sich nicht dasselbe Canvas, aber wenn
+       beide liefen, liegt das Ergebnis im Zuschnitt-Canvas – das ist richtig. */
+    return origBuildCard.call(SS, el, q, h);
   };
 
   /* ==================================================================
@@ -98,7 +129,7 @@
   if (typeof origPhotoCard === 'function' && typeof SS.cardCacheClear === 'function') {
     SS.photoCard = function (el) {
       if (el) {
-        const sig = `${el.rahmenAR || 0}|${el.rahmenOX || 0}|${el.rahmenOY || 0}`;
+        const sig = `${el.rahmenAR || 0}|${el.rahmenOX || 0}|${el.rahmenOY || 0}|${el.rahmenVorX || 1}`;
         if (merk[el.id] !== sig) { merk[el.id] = sig; SS.cardCacheClear(el.id); }
       }
       return origPhotoCard.call(SS, el);
@@ -112,10 +143,10 @@
         const w = el.w * (el.scaleX || 1), h = el.h * (el.scaleY || 1);
         return h > 0 ? w / h : 1;
       }
-      const merkAR = el.rahmenAR;
-      el.rahmenAR = 0;                       // Original erzwingen
+      const merkAR = el.rahmenAR, merkVor = el.rahmenVorX;
+      el.rahmenAR = 0; el.rahmenVorX = 1;    // Original erzwingen
       const src = SS.filteredPhoto && SS.filteredPhoto(el);
-      el.rahmenAR = merkAR;
+      el.rahmenAR = merkAR; el.rahmenVorX = merkVor;
       if (src && src.width && src.height) return src.width / src.height;
     } catch (e) {}
     return 1;
@@ -142,6 +173,11 @@
     zielW = clamp(zielW, 30, 6000);
     zielH = clamp(zielH, 30, 6000);
     el.scaleX = 1; el.scaleY = 1;
+    /* Die Vorstauchung gehört zu genau einem Rahmen. Wer von „Herz" auf
+       „Oval" wechselt, würde sie sonst mitschleppen und ein schiefes Bild
+       bekommen – gemessen ging Oval dadurch 19,5 % daneben. */
+    el.rahmenVorX = 1;
+    el._formFest = false;
     if (!el.rahmenAR) el.rahmenAR = SS.rahmenQuellAR(el);
 
     for (let i = 0; i < 7; i++) {
@@ -151,6 +187,53 @@
       el.h = clamp(el.h * fh, 40, 4000);
       el.rahmenAR = clamp(el.rahmenAR * fw / fh, AR_MIN, AR_MAX);
     }
+
+    /* ---- Zweite Phase: Rahmen mit vorgegebener Form ----
+       Elf der fünfzig Rahmen zeichnen ihre eigene Form und bleiben dabei
+       quadratisch, egal was hineingeht: Kreis, Herz, Herz-Polaroid, Stern,
+       Blume, Wolke, Hexagon, Raute, CD, Retro-Kamera, Perlen-Herz. Bei
+       ihnen läuft die Iteration oben ins Leere – gemessen kam bei 506 × 900
+       ein 332 × 332 heraus.
+
+       Für sie wird die fertige Karte gezielt gestreckt (aus dem Kreis wird
+       eine Ellipse, aus dem Herz ein hohes Herz – genau das ist gewollt) und
+       die Bildquelle vorher GEGENLÄUFIG beschnitten, damit das Foto darin
+       trotzdem unverzerrt und formatfüllend sitzt.
+
+       Das geht in einem Schritt, weil das Verhältnis der Karte bei diesen
+       Rahmen von `rahmenAR` unabhängig ist – sonst hätte die erste Phase ja
+       gegriffen. Zur Sicherheit wird gemessen statt geglaubt. */
+    let r = misst(el);
+    const daneben = Math.abs(r.w - zielW) / zielW > 0.02 || Math.abs(r.h - zielH) / zielH > 0.02;
+    if (daneben) {
+      /* Phase 1 hat `rahmenAR` bei diesen Rahmen wirkungslos verstellt –
+         deshalb sauber von vorn anfangen. */
+      el.rahmenAR = 0; el.rahmenVorX = 1;
+      el.h = clamp(zielH, 40, 4000);
+      r = misst(el);
+
+      const kartenAR = r.w / r.h;                 // die feste Form des Rahmens
+      const zielAR = zielW / zielH;
+      /* Die Karte wird gleich um zielAR/kartenAR waagerecht gestreckt.
+         Genau diesen Faktor nimmt die Vorstauchung dem Bild vorweg. */
+      el.rahmenVorX = clamp(kartenAR / zielAR, 0.02, 50);
+
+      for (let i = 0; i < 4; i++) {               // Höhe nachziehen, dann sitzt es
+        const m = misst(el);
+        if (Math.abs(m.h - zielH) < 0.5) break;
+        el.h = clamp(el.h * zielH / Math.max(1, m.h), 40, 4000);
+      }
+      r = misst(el);
+      el.scaleX = clamp(zielW / r.w, 0.02, 50);
+      el.scaleY = clamp(zielH / r.h, 0.02, 50);
+      el._formFest = true;
+    } else {
+      el.rahmenVorX = 1;
+      el._formFest = false;
+    }
+    el._sollW = zielW; el._sollH = zielH;
+    el._sollSX = el.scaleX; el._sollSY = el.scaleY;
+
     if (typeof SS.cardCacheClear === 'function') SS.cardCacheClear(el.id);
     merk[el.id] = null;
     return true;
@@ -285,6 +368,8 @@
         sel.scaleX = 1; sel.scaleY = 1;
         sel.w = neuW; sel.h = neuH;
         sel._rahmenSig = null;
+        sel._sollW = neuW; sel._sollH = neuH;
+        sel._sollSX = 1; sel._sollSY = 1;
         if (sel.radius) sel.radius = Math.min(sel.radius, Math.min(neuW, neuH) / 2);
       } else {
         /* Auch ohne Rahmen gilt derselbe Weg: dann ist es schlicht ein
@@ -349,6 +434,9 @@
       knopf('Format des Fotos', () => {
         const alt = SS.rahmenGroesse(sel);
         sel.rahmenAR = 0; sel.rahmenOX = 0; sel.rahmenOY = 0;
+        sel.rahmenVorX = 1; sel._formFest = false;
+        sel._sollW = 0; sel._sollH = 0;
+        sel._sollSX = 1; sel._sollSY = 1;
         sel.scaleX = 1; sel.scaleY = 1;
         if (typeof SS.cardCacheClear === 'function') SS.cardCacheClear(sel.id);
         merk[sel.id] = null;
@@ -409,14 +497,25 @@
       let geaendert = false;
       const liste = (SS.getSelAll && SS.getSelAll()) || [];
       for (const el of liste) {
-        if (!hatRahmen(el)) continue;
+        if (el.type !== 'photo' && el.type !== 'video') continue;
         const sx = el.scaleX || 1, sy = el.scaleY || 1;
-        if (Math.abs(sx - sy) < 0.004) continue;         // gleichmäßig → in Ordnung
+        /* Rahmen mit fester Form tragen dauerhaft ein ungleiches scaleX/scaleY –
+           das ist kein Ziehen, sondern das Ergebnis von passeRahmenAn. Verglichen
+           wird deshalb nicht gegen 1, sondern gegen den zuletzt gesetzten Stand:
+           nur eine UNGLEICHE Änderung seither ist ein echtes Verzerren.
+           Gleichmäßiges Vergrößern bleibt unangetastet – dort soll der Rand
+           mitwachsen. */
+        const bx = el._sollSX || 1, by = el._sollSY || 1;
+        const rx = sx / (bx || 1), ry = sy / (by || 1);
+        if (Math.abs(rx - ry) < 0.004) continue;
         if (el.type === 'video') {
+          if (!hatRahmen(el)) continue;
           el.w = clamp(el.w * sx, 30, 6000);
           el.h = clamp(el.h * sy, 30, 6000);
           el.scaleX = 1; el.scaleY = 1;
           el._rahmenSig = null;
+          el._sollW = el.w; el._sollH = el.h;
+          el._sollSX = 1; el._sollSY = 1;
           geaendert = true;
         } else if (el.type === 'photo') {
           const r = SS.elSizeRaw(el);
@@ -445,6 +544,7 @@
         if (el.rahmenAR === undefined) el.rahmenAR = 0;   // 0 = wie bisher
         if (el.rahmenOX === undefined) el.rahmenOX = 0;
         if (el.rahmenOY === undefined) el.rahmenOY = 0;
+        if (el.rahmenVorX === undefined) el.rahmenVorX = 1;
       }
       return r;
     };

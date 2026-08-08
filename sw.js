@@ -1,5 +1,5 @@
 /* Seamless Studio – Service Worker (offline cache) */
-const VERSION = 'ss-v7.8.0';
+const VERSION = 'ss-v7.9.0';
 const ASSETS = [
   './',
   './index.html',
@@ -97,6 +97,7 @@ const ASSETS = [
   './videoslides77.js',
   './videorahmen77.js',
   './rahmenfrei78.js',
+  './stickerfrei79.js',
   './icon-192.png',
   './icon-512.png',
   './icon-maskable-512.png',
