@@ -40,7 +40,7 @@
    ========================================================================= */
 
 (function () {
-  const FASSUNG = 'ss-v8.6.0';           // muss zu VERSION in sw.js passen
+  const FASSUNG = 'ss-v8.7.0';           // muss zu VERSION in sw.js passen
   SS.APP_FASSUNG = FASSUNG;
 
   /* ==========================================================
