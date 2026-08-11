@@ -1,5 +1,5 @@
 /* Seamless Studio – Service Worker (offline cache) */
-const VERSION = 'ss-v8.4.0';
+const VERSION = 'ss-v8.5.0';
 const ASSETS = [
   './',
   './index.html',
@@ -105,6 +105,7 @@ const ASSETS = [
   './austausch82.js',
   './bildtreu83.js',
   './farbcheck84.js',
+  './frisch85.js',
   './icon-192.png',
   './icon-512.png',
   './icon-maskable-512.png',
@@ -182,15 +183,56 @@ self.addEventListener('activate', (e) => {
   );
 });
 
+/* Programmdateien (Dokument, .js, .css) NETZ ZUERST, Speicher als Rückfall –
+   sonst bleibt eine einmal abgelegte Fassung liegen, egal wie oft man die App
+   schließt. Alles andere (Schriften, Bilder, Symbole) ändert sich nie und
+   kommt weiter sofort aus dem Speicher. */
+function istProgramm(req) {
+  if (req.mode === 'navigate' || req.destination === 'document') return true;
+  const p = new URL(req.url).pathname;
+  return /\.(js|css|webmanifest)$/i.test(p);
+}
+
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
+  const req = e.request;
+
+  if (istProgramm(req)) {
+    e.respondWith((async () => {
+      try {
+        const res = await fetch(req);
+        if (res && res.ok) {
+          const copy = res.clone();
+          caches.open(VERSION).then((c) => c.put(req, copy)).catch(() => {});
+        }
+        return res;
+      } catch (err) {
+        const hit = await caches.match(req, { ignoreSearch: true });
+        return hit || (await caches.match('./index.html')) || Response.error();
+      }
+    })());
+    return;
+  }
+
   e.respondWith(
-    caches.match(e.request, { ignoreSearch: true }).then((hit) => hit ||
-      fetch(e.request).then((res) => {
+    caches.match(req, { ignoreSearch: true }).then((hit) => hit ||
+      fetch(req).then((res) => {
         const copy = res.clone();
-        caches.open(VERSION).then((c) => c.put(e.request, copy));
+        caches.open(VERSION).then((c) => c.put(req, copy));
         return res;
       }).catch(() => caches.match('./index.html'))
     )
   );
+});
+
+/* Von der App aus leeren lassen: SS.appNeuLaden nutzt zwar den direkten Weg
+   über `caches`, aber ein abgemeldeter Worker kann noch laufen – so lässt er
+   sich zusätzlich anweisen, sofort Platz zu machen. */
+self.addEventListener('message', (e) => {
+  const d = e.data || {};
+  if (d.typ === 'leeren') {
+    e.waitUntil(caches.keys().then((ks) => Promise.all(ks.map((k) => caches.delete(k)))));
+  } else if (d.typ === 'uebernehmen') {
+    self.skipWaiting();
+  }
 });
