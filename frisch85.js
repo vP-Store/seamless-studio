@@ -40,7 +40,7 @@
    ========================================================================= */
 
 (function () {
-  const FASSUNG = 'ss-v8.7.0';           // muss zu VERSION in sw.js passen
+  const FASSUNG = 'ss-v8.8.1';           // muss zu VERSION in sw.js passen
   SS.APP_FASSUNG = FASSUNG;
 
   /* ==========================================================
@@ -131,7 +131,21 @@
     } catch (e) {}
     const netz = await fassungImNetz();
     SS.APP_FASSUNG_NETZ = netz;
-    if (netz && netz !== FASSUNG) leiste('Neue Fassung ' + netz + ' ist da.');
+    if (netz && netz !== FASSUNG) {
+      /* Neue Fassung liegt bereit – die App lädt sich selbst neu, damit
+         man nie versehentlich die alte Version testet. Der Knopf bleibt
+         für den Fall, dass gerade etwas läuft (Export/Aufnahme), das ein
+         Neuladen mitten drin abbrechen würde. */
+      const aktiv = !!(SS.slideVideo && SS.slideVideo.laeuft)
+        || !!SS._exporting
+        || document.visibilityState === 'hidden';
+      if (!aktiv) {
+        leiste('Neue Fassung ' + netz + ' wird geladen …');
+        setTimeout(() => SS.appNeuLaden(), 400);
+      } else {
+        leiste('Neue Fassung ' + netz + ' ist da – nach dem Export laden.');
+      }
+    }
     zeileSetzen(netz);
   }
 

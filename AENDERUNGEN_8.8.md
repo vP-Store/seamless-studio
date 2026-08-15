@@ -1,3 +1,28 @@
+# Seamless Studio v8.8.1 – Auto-Update, damit Fixes auch ankommen (15.08.2026)
+
+## Das eigentliche Problem hinter „der Fix funktioniert nicht"
+
+Der Clip-Fix (v8.8.0) war live und im Browser-Test nachweislich korrekt –
+trotzdem meldete der Nutzer, dass Slide 2 weiterhin nicht abspielt. Grund:
+
+**Die App lief noch in der alten Version.** Der Service Worker liefert beim
+ersten Öffnen nach einem Update die alten Dateien aus dem Cache; der neue
+Code kommt erst nach einem manuellen Neuladen. Die App zeigte dafür zwar eine
+Leiste („Neue Fassung ist da – Jetzt laden"), aber die ist leicht zu
+übersehen – und `frisch85.js` war auf die alte Fassungsnummer hartkodiert,
+sodass der Hinweis dauerhaft falsch klingelte.
+
+## Behoben
+
+* **Die App lädt sich selbst neu**, sobald beim Start eine neuere Fassung
+  im Netz liegt (nach 400 ms, mit sichtbarem Hinweis). Niemand testet mehr
+  versehentlich die alte Version.
+* **Schutz:** Läuft gerade eine Video-Aufnahme/Export (`slideVideo.laeuft`
+  oder `SS._exporting`) oder ist der Tab verborgen, wird NICHT automatisch
+  neu geladen – stattdessen erscheint die Leiste „nach dem Export laden".
+* `FASSUNG` in `frisch85.js` auf `ss-v8.8.1` gezogen (muss immer mit
+  `VERSION` in `sw.js` übereinstimmen).
+
 # Seamless Studio v8.8 – Clips frieren im Slide-Video nicht mehr ein (15.08.2026)
 
 Meldung: „Ich habe ein Video in einen Bilderrahmen gemacht. Beim Karussell-
