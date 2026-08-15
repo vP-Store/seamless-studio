@@ -63,13 +63,26 @@
 
   /* Alle Clips auf den Zeitpunkt t der Gesamtdauer stellen */
   SS.syncVideoEls = function (t, playing) {
+    /* Karussell-Aufnahme (videoslides77): dort ist jede Slide eine eigene
+       Datei, die bei 0 startet. Der Clip läuft dann in Schleife über seinen
+       Trimmbereich (wie auf der Leinwand, loop=true) – er füllt die ganze
+       Slide-Dauer, statt nach clipLen einzufrieren. `SS.slideVideo` wird
+       erst zur Laufzeit belegt (clips5 lädt vor videoslides77), deshalb
+       der sichere Zugriff. */
+    const karussell = !!(SS.slideVideo && SS.slideVideo.laeuft);
     for (const el of st.elements) {
       if (el.type !== 'video') continue;
       const rec = SS.videos[el.vidId];
       if (!rec || !rec.el) continue;
       const v = rec.el;
-      const inRange = t >= (el.tIn || 0) && t < (el.tIn || 0) + clipLen(el);
-      const local = (el.trimStart || 0) + Math.max(0, t - (el.tIn || 0));
+      const len = clipLen(el);
+      let inRange = true, local;
+      if (karussell) {
+        local = (el.trimStart || 0) + (t % len);
+      } else {
+        inRange = t >= (el.tIn || 0) && t < (el.tIn || 0) + len;
+        local = (el.trimStart || 0) + Math.max(0, t - (el.tIn || 0));
+      }
       if (!inRange) {
         if (!v.paused) v.pause();
         continue;
